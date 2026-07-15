@@ -70,8 +70,6 @@ Tamagochi/
 └── README.md
 ```
 
-*(Modify according to your actual folder structure.)*
-
 ---
 
 # 🚀 Getting Started
