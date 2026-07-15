@@ -3,7 +3,7 @@
 # 🥚 Tamagochi
 ### *An adorable open-source virtual pet game built with ❤️*
 
-<img src="assets/logo.png" width="180"/>
+<img src="public/icon.svg" width="180"/>
 
 ![GitHub stars](https://img.shields.io/github/stars/Tech-aficionado/Tamagochi---Open-Source-Game?style=for-the-badge)
 ![GitHub forks](https://img.shields.io/github/forks/Tech-aficionado/Tamagochi---Open-Source-Game?style=for-the-badge)
