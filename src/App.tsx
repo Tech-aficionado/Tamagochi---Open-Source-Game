@@ -153,7 +153,7 @@ export default function App() {
               </div>
               <div className="scene-wrap">
                 <Suspense fallback={<div className="scene-loading">WAKING UP…</div>}>
-                  <PetScene theme={theme} mood={mood} actionNonce={game.actionNonce} reducedMotion={reducedMotion} onPlay={() => care('play')} />
+                  <PetScene theme={theme} mood={mood} lastAction={game.lastAction} actionNonce={game.actionNonce} reducedMotion={reducedMotion} onPlay={() => care('play')} />
                 </Suspense>
                 <div className="scanlines" aria-hidden="true" />
               </div>
