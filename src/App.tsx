@@ -1,0 +1,259 @@
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { THEME_BY_ID, THEMES } from './data/themes'
+import { STORY_EVENTS, useGameStore } from './game/store'
+import { getMood, type CareAction, type NeedKey } from './game/types'
+import { useNostalgiaMusic } from './audio/chiptune'
+import { ActivityArcade } from './ui/ActivityArcade'
+import { FirstRunTutorial } from './ui/FirstRunTutorial'
+
+const PetScene = lazy(() => import('./scene/PetScene').then((module) => ({ default: module.PetScene })))
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
+const ACTIONS: readonly { id: CareAction; icon: string; label: string; hint: string }[] = [
+  { id: 'feed', icon: '●', label: 'Feed', hint: '+ hunger' },
+  { id: 'play', icon: '✦', label: 'Play', hint: '+ joy' },
+  { id: 'wash', icon: '≈', label: 'Wash', hint: '+ hygiene' },
+  { id: 'rest', icon: '☾', label: 'Rest', hint: '+ energy' },
+  { id: 'cuddle', icon: '♥', label: 'Cuddle', hint: '+ bond' },
+  { id: 'explore', icon: '↗', label: 'Explore', hint: '+ discovery' },
+]
+
+const NEEDS: readonly { id: NeedKey; label: string; glyph: string }[] = [
+  { id: 'hunger', label: 'Full', glyph: '●' },
+  { id: 'joy', label: 'Joy', glyph: '✦' },
+  { id: 'hygiene', label: 'Clean', glyph: '◇' },
+  { id: 'energy', label: 'Rest', glyph: '☾' },
+  { id: 'health', label: 'Health', glyph: '♥' },
+]
+
+const MOOD_COPY = {
+  radiant: ['GLOWING', 'Mori is brighter than the morning.'],
+  happy: ['CONTENT', 'A tiny, happy hum fills the room.'],
+  peckish: ['PECKISH', 'Mori keeps glancing toward the snacks.'],
+  sleepy: ['DROWSY', 'Those little eyelids are getting heavy.'],
+  grumpy: ['FUSSY', 'Something feels a little out of tune.'],
+  unwell: ['NEEDS CARE', 'Stay close. Mori needs gentle attention.'],
+} as const
+
+function Gauge({ label, glyph, value }: { label: string; glyph: string; value: number }) {
+  const rounded = Math.round(value)
+  return (
+    <div className="gauge-row">
+      <span className="gauge-glyph" aria-hidden="true">{glyph}</span>
+      <span className="gauge-label">{label}</span>
+      <div className="gauge-track" role="meter" aria-label={`${label} ${rounded}%`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={rounded}>
+        <span className="gauge-fill" style={{ width: `${rounded}%` }} />
+      </div>
+      <span className="gauge-value">{rounded}</span>
+    </div>
+  )
+}
+
+export default function App() {
+  const game = useGameStore()
+  const music = useNostalgiaMusic()
+  const [tutorialOpen, setTutorialOpen] = useState(() => window.localStorage.getItem('poket-worlds-tutorial-v1') !== 'done')
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [reducedMotion, setReducedMotion] = useState(false)
+  const theme = THEME_BY_ID[game.themeId]
+  const mood = getMood(game.needs)
+  const moodCopy = MOOD_COPY[mood]
+  const story = STORY_EVENTS[game.storyIndex]
+
+  useEffect(() => {
+    game.tick()
+    const interval = window.setInterval(game.tick, 5_000)
+    return () => window.clearInterval(interval)
+  }, [game.tick])
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReducedMotion(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    const capture = (event: Event) => {
+      event.preventDefault()
+      setInstallPrompt(event as BeforeInstallPromptEvent)
+    }
+    window.addEventListener('beforeinstallprompt', capture)
+    return () => window.removeEventListener('beforeinstallprompt', capture)
+  }, [])
+
+  const themeStyle = useMemo(() => ({
+    '--shell': theme.shell,
+    '--shell-dark': theme.shellDark,
+    '--accent': theme.accent,
+    '--ink': theme.ink,
+    '--screen': theme.screen,
+    '--glow': theme.glow,
+  }) as CSSProperties, [theme])
+
+  const care = (action: CareAction) => {
+    game.care(action)
+    music.playSfx(action)
+  }
+
+  const finishTutorial = () => {
+    window.localStorage.setItem('poket-worlds-tutorial-v1', 'done')
+    setTutorialOpen(false)
+  }
+
+  const install = async () => {
+    if (!installPrompt) return
+    await installPrompt.prompt()
+    await installPrompt.userChoice
+    setInstallPrompt(null)
+  }
+
+  const ageLabel = game.ageMinutes < 60
+    ? `${Math.max(1, Math.floor(game.ageMinutes))} MIN`
+    : `${Math.floor(game.ageMinutes / 60)} HR`
+
+  return (
+    <div className="app" style={themeStyle}>
+      <header className="topbar">
+        <a className="brand" href="#home" aria-label="Poket Worlds home">
+          <span className="brand-mark" aria-hidden="true">PW</span>
+          <span>POKET<br />WORLDS</span>
+        </a>
+        <div className="topbar-actions">
+          <span className="save-status"><i /> LOCAL SAVE</span>
+          {installPrompt && <button className="text-button" onClick={install}>INSTALL APP</button>}
+          <button className="icon-button" onClick={() => setTutorialOpen(true)} aria-label="Open tutorial">?</button>
+          <button className={`icon-button music-button ${music.isPlaying ? 'playing' : ''}`} onClick={() => void music.toggle()} aria-label={music.isPlaying ? 'Stop nostalgic music' : 'Play nostalgic music'} title={music.isPlaying ? 'Music on' : 'Play music'}>
+            {music.isPlaying ? '♫' : '♪'}
+          </button>
+        </div>
+      </header>
+
+      <main id="home" className="game-layout">
+        <section className="hero-copy" aria-labelledby="pet-title">
+          <p className="eyebrow">POCKET PAL · GENERATION 01</p>
+          <h1 id="pet-title">Meet<br /><em>{game.petName}.</em></h1>
+          <p className="hero-note">A tiny life in a world that fits in your hand.</p>
+        </section>
+
+        <section className="device-stage" aria-label={`${game.petName}'s ${theme.name} device`}>
+          <div className="device-shadow" />
+          <div className="device">
+            <div className="device-loop"><span /></div>
+            <div className="device-label"><b>{theme.number}</b><span>{theme.name}</span><i>ONLINE</i></div>
+            <div className="screen-bezel">
+              <div className="screen-meta">
+                <span>{moodCopy[0]}</span>
+                <span>AGE {ageLabel}</span>
+              </div>
+              <div className="scene-wrap">
+                <Suspense fallback={<div className="scene-loading">WAKING UP…</div>}>
+                  <PetScene theme={theme} mood={mood} actionNonce={game.actionNonce} reducedMotion={reducedMotion} onPlay={() => care('play')} />
+                </Suspense>
+                <div className="scanlines" aria-hidden="true" />
+              </div>
+              <div className="screen-caption">
+                <strong>{game.petName}</strong>
+                <span>{moodCopy[1]}</span>
+              </div>
+            </div>
+            <div className="hardware-controls" aria-label="Quick care controls">
+              {ACTIONS.slice(0, 3).map((action) => (
+                <button key={action.id} onClick={() => care(action.id)} aria-label={action.label}>{action.icon}</button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <aside className="care-panel" aria-label="Pet care panel">
+          <div className="panel-heading">
+            <div><p className="eyebrow">TODAY'S SIGNAL</p><h2>{moodCopy[0]}</h2></div>
+            <span className={`mood-orb mood-${mood}`} aria-hidden="true" />
+          </div>
+          <div className="mode-switch" aria-label="Care difficulty">
+            <button className={game.mode === 'cozy' ? 'active' : ''} onClick={() => game.setMode('cozy')}>COZY</button>
+            <button className={game.mode === 'classic' ? 'active' : ''} onClick={() => game.setMode('classic')}>CLASSIC</button>
+          </div>
+          <div className="gauges">
+            {NEEDS.map((need) => <Gauge key={need.id} {...need} value={game.needs[need.id]} />)}
+          </div>
+          <div className="bond-line"><span>BOND</span><strong>{Math.round(game.bond)}%</strong></div>
+          <div className="reward-strip" aria-label="Arcade progress">
+            <span>✦ {game.sparks} SPARKS</span><span>↻ {game.playStreak} DAY</span>
+          </div>
+          <div className="care-actions">
+            {ACTIONS.map((action) => (
+              <button key={action.id} onClick={() => care(action.id)}>
+                <span aria-hidden="true">{action.icon}</span><b>{action.label}</b><small>{action.hint}</small>
+              </button>
+            ))}
+          </div>
+          <button className="story-button" onClick={game.openStory} disabled={!story}>
+            <span>{story ? 'OPEN NEXT MEMORY' : 'ALL MEMORIES FOUND'}</span><b>→</b>
+          </button>
+        </aside>
+      </main>
+
+      {game.lastReply && !game.storyOpen && (
+        <div className="reply-toast" role="status"><span>MEMORY SAVED</span>{game.lastReply}</div>
+      )}
+
+      <ActivityArcade />
+
+      <section className="theme-section" aria-labelledby="theme-title">
+        <div className="section-lead">
+          <p className="eyebrow">DEVICE COLLECTION</p>
+          <h2 id="theme-title">One friend.<br /><em>Many worlds.</em></h2>
+          <p>Every shell changes the room inside—not just the color outside.</p>
+        </div>
+        <div className="theme-list">
+          {THEMES.map((item) => (
+            <button
+              key={item.id}
+              className={`theme-card ${item.id === theme.id ? 'selected' : ''}`}
+              style={{ '--card-color': item.shell, '--card-accent': item.accent } as CSSProperties}
+              onClick={() => game.setTheme(item.id)}
+              aria-pressed={item.id === theme.id}
+            >
+              <span className="mini-device"><i /><b>◉‿◉</b></span>
+              <span className="theme-copy"><small>{item.number}</small><strong>{item.name}</strong><em>{item.tagline}</em></span>
+              <span className="select-dot" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <footer>
+        <span>POKET WORLDS · ORIGINAL VIRTUAL PET</span>
+        <button onClick={() => { if (window.confirm('Start again with a fresh egg?')) game.reset() }}>RESET SAVE</button>
+      </footer>
+
+      {game.storyOpen && story && (
+        <div className="story-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) game.closeStory() }}>
+          <section className="story-dialog" role="dialog" aria-modal="true" aria-labelledby="story-title">
+            <button className="dialog-close" onClick={game.closeStory} aria-label="Close story">×</button>
+            <div className="story-art" aria-hidden="true"><span>✦</span><i /><b>◉‿◉</b></div>
+            <div className="story-content">
+              <p className="eyebrow">{story.eyebrow}</p>
+              <h2 id="story-title">{story.title}</h2>
+              <p>{story.body}</p>
+              <div className="story-choices">
+                {story.choices.map((choice, index) => (
+                  <button key={choice.label} onClick={() => game.chooseStory(index)}><span>{choice.label}</span><b>→</b></button>
+                ))}
+              </div>
+              <small>Your choices shape Mori's future evolution.</small>
+            </div>
+          </section>
+        </div>
+      )}
+
+      <FirstRunTutorial open={tutorialOpen} onFinish={finishTutorial} />
+    </div>
+  )
+}
