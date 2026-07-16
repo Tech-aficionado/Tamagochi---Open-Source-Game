@@ -16,9 +16,9 @@ export default defineConfig({
         navigateFallback: '/index.html',
       },
       manifest: {
-        name: 'Poket Worlds — Virtual Pet',
-        short_name: 'Poket Worlds',
-        description: 'Raise a tiny friend inside a collection of magical pocket worlds.',
+        name: 'Tamagochi — Virtual Pet',
+        short_name: 'Tamagochi',
+        description: 'Raise a tiny friend inside a magical handheld world.',
         theme_color: '#f05f4f',
         background_color: '#fff5df',
         display: 'standalone',

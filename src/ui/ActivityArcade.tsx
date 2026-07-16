@@ -104,7 +104,7 @@ function GameShell({ title, subtitle, onClose, children }: { title: string; subt
   return (
     <div className="game-overlay" role="presentation">
       <section className="game-dialog" role="dialog" aria-modal="true" aria-labelledby="game-title">
-        <header><div><p className="eyebrow">POKET ARCADE</p><h2 id="game-title">{title}</h2><span>{subtitle}</span></div><button onClick={onClose} aria-label="Close game">×</button></header>
+        <header><div><p className="eyebrow">TAMAGOCHI ARCADE</p><h2 id="game-title">{title}</h2><span>{subtitle}</span></div><button onClick={onClose} aria-label="Close game">×</button></header>
         {children}
       </section>
     </div>
@@ -120,7 +120,7 @@ export function ActivityArcade() {
   return (
     <section className="activity-section" aria-labelledby="activity-title">
       <div className="activity-heading">
-        <div><p className="eyebrow">POKET ARCADE · OPEN DAILY</p><h2 id="activity-title">Tiny games.<br /><em>Real rituals.</em></h2></div>
+        <div><p className="eyebrow">TAMAGOCHI ARCADE · OPEN DAILY</p><h2 id="activity-title">Tiny games.<br /><em>Real rituals.</em></h2></div>
         <div className="reward-counter"><span>✦ {sparks} SPARKS</span><span>↻ {streak} DAY STREAK</span></div>
       </div>
       <div className="activity-grid">
