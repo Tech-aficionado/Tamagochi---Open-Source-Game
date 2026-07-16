@@ -1,4 +1,4 @@
-# Poket Worlds — Product and Technical Design
+# Tamagochi — Product and Technical Design
 
 ## Understanding
 - An original browser virtual-pet game for nostalgic adults and cozy-game players.

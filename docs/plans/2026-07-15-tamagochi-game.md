@@ -1,4 +1,4 @@
-# Poket Worlds Virtual Pet Implementation Plan
+# Tamagochi Virtual Pet Implementation Plan
 
 > **For Kiro:** REQUIRED SUB-SKILL: Use executing-plans to implement this plan task-by-task.
 
