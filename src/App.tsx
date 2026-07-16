@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { THEME_BY_ID, THEMES } from './data/themes'
 import { getDominantPersonality, getGrowthStage, INCIDENT_BY_ID, MINUTE_MS, settleTimedState } from './game/progression'
 import { getStoryBondRequirement, isStoryUnlocked, STORY_EVENTS, useGameStore } from './game/store'
@@ -30,6 +30,8 @@ const isStandaloneDisplay = () => (
   window.matchMedia('(display-mode: standalone)').matches
   || (navigator as NavigatorWithStandalone).standalone === true
 )
+
+const isCompactScene = () => window.matchMedia('(max-width: 430px), (pointer: coarse)').matches
 
 const ACTIONS: readonly { id: CareAction; icon: string; label: string; hint: string }[] = [
   { id: 'feed', icon: '●', label: 'Feed', hint: '+ hunger' },
@@ -153,12 +155,16 @@ function Gauge({ label, glyph, value }: { label: string; glyph: string; value: n
 export default function App() {
   const game = useGameStore()
   const music = useNostalgiaMusic()
+  const sceneWrapRef = useRef<HTMLDivElement>(null)
   const [tutorialOpen, setTutorialOpen] = useState(() => !isTutorialComplete())
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installGuideOpen, setInstallGuideOpen] = useState(false)
   const [isIos] = useState(isIosDevice)
   const [isInstalled, setIsInstalled] = useState(isStandaloneDisplay)
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [compactScene, setCompactScene] = useState(isCompactScene)
+  const [sceneInView, setSceneInView] = useState(true)
+  const [pageVisible, setPageVisible] = useState(() => document.visibilityState === 'visible')
   const [returnBrief, setReturnBrief] = useState<ReturnBrief | null>(() => createReturnBrief(game))
   const theme = THEME_BY_ID[game.themeId]
   const mood = getMood(game.needs)
@@ -174,6 +180,7 @@ export default function App() {
   const returnAction = returnBrief ? ACTIONS.find((action) => action.id === returnBrief.recommendedAction) : null
   const returnNeed = returnBrief ? NEEDS.find((need) => need.id === returnBrief.changedNeed) : null
   const returnIncident = returnBrief?.incidentId ? INCIDENT_BY_ID[returnBrief.incidentId] : null
+  const sceneActive = sceneInView && pageVisible && !tutorialOpen && !installGuideOpen && !game.storyOpen
   const noticeLabel = game.lastAction === 'story'
     ? 'MEMORY SAVED'
     : game.lastAction === 'activity'
@@ -197,6 +204,30 @@ export default function App() {
     update()
     media.addEventListener('change', update)
     return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 430px), (pointer: coarse)')
+    const update = () => setCompactScene(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    const updateVisibility = () => setPageVisible(document.visibilityState === 'visible')
+    const scene = sceneWrapRef.current
+    const observer = typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver(([entry]) => setSceneInView(entry.isIntersecting), { threshold: 0.05 })
+
+    if (scene) observer?.observe(scene)
+    document.addEventListener('visibilitychange', updateVisibility)
+    updateVisibility()
+    return () => {
+      observer?.disconnect()
+      document.removeEventListener('visibilitychange', updateVisibility)
+    }
   }, [])
 
   useEffect(() => {
@@ -272,7 +303,9 @@ export default function App() {
         <div className="topbar-actions">
           <span className="save-status"><i /> LOCAL SAVE</span>
           {!isInstalled && (installPrompt || isIos) && (
-            <button className="text-button install-button" onClick={() => void install()}>INSTALL APP</button>
+            <button className="text-button install-button" onClick={() => void install()}>
+              <span className="install-label-long">INSTALL APP</span><span className="install-label-short">INSTALL</span>
+            </button>
           )}
           <button className="icon-button" onClick={() => setTutorialOpen(true)} aria-label="Open tutorial">?</button>
           <button className={`icon-button music-button ${music.isPlaying ? 'playing' : ''}`} onClick={() => void music.toggle()} aria-label={music.isPlaying ? 'Stop nostalgic music' : 'Play nostalgic music'} title={music.isPlaying ? 'Music on' : 'Play music'}>
@@ -319,7 +352,7 @@ export default function App() {
                 <span>{moodCopy[0]}</span>
                 <span>AGE {ageLabel}</span>
               </div>
-              <div className="scene-wrap">
+              <div ref={sceneWrapRef} className="scene-wrap">
                 <Suspense fallback={<div className="scene-loading">WAKING UP…</div>}>
                   <PetScene
                     theme={theme}
@@ -327,6 +360,8 @@ export default function App() {
                     lastAction={game.lastAction}
                     actionNonce={game.actionNonce}
                     reducedMotion={reducedMotion}
+                    compact={compactScene}
+                    active={sceneActive}
                     personality={personality}
                     growthStage={growthStage.id}
                     incidentId={game.activeIncident?.id ?? null}
