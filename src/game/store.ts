@@ -48,6 +48,22 @@ export const STORY_EVENTS: readonly StoryEvent[] = [
   },
 ]
 
+const ACTIVITY_SCORE_LIMIT: Record<MiniGameId, number> = {
+  'star-catch': 100,
+  'memory-flip': 20,
+}
+
+export const getStoryBondRequirement = (storyIndex: number) => storyIndex * 10 + 4
+
+export const isStoryUnlocked = (storyIndex: number, bond: number) => (
+  storyIndex < STORY_EVENTS.length && bond >= getStoryBondRequirement(storyIndex)
+)
+
+const normalizeActivityScore = (gameId: MiniGameId, score: number) => {
+  if (!Number.isFinite(score)) return 0
+  return Math.max(0, Math.min(ACTIVITY_SCORE_LIMIT[gameId], Math.floor(score)))
+}
+
 interface GameState extends GameSnapshot {
   tick: () => void
   care: (action: CareAction) => void
@@ -110,7 +126,7 @@ export const useGameStore = create<GameState>()(
 
         const bondGain = action === 'cuddle' ? 4 : action === 'play' || action === 'explore' ? 3 : 1.5
         const nextBond = clampNeed(state.bond + bondGain)
-        const storyReady = state.storyIndex < STORY_EVENTS.length && nextBond >= state.storyIndex * 10 + 4
+        const storyReady = isStoryUnlocked(state.storyIndex, nextBond)
         return {
           ...settled,
           needs: applyCareEffects(settled.needs, action),
@@ -129,13 +145,13 @@ export const useGameStore = create<GameState>()(
         }
       }),
       completeActivity: (gameId, score) => set((state) => {
-        const sampledNow = Date.now()
-        const settled = settleTimedState(state, sampledNow)
-        const today = utcDateKey(sampledNow)
+        const settled = settleTimedState(state, Date.now())
+        const safeScore = normalizeActivityScore(gameId, score)
+        const today = utcDateKey(settled.lastUpdated)
         const previous = state.lastActivityDate ? Date.parse(`${state.lastActivityDate}T00:00:00Z`) : null
         const dayGap = previous === null ? null : Math.round((Date.parse(`${today}T00:00:00Z`) - previous) / 86_400_000)
         const playStreak = dayGap === 0 ? state.playStreak : dayGap === 1 ? state.playStreak + 1 : 1
-        const reward = Math.max(3, Math.floor(score / 2))
+        const reward = Math.max(3, Math.floor(safeScore / 2))
         const progressionReady = state.lastGrowthActivityDate !== today
         const trait = gameId === 'star-catch' ? 'playful' : 'curious'
         return {
@@ -147,14 +163,14 @@ export const useGameStore = create<GameState>()(
           growthPoints: state.growthPoints + (progressionReady ? 6 : 0),
           personalityScores: progressionReady ? applyTraitAward(state.personalityScores, trait, 3) : state.personalityScores,
           personalityFocus: progressionReady ? trait : state.personalityFocus,
-          activityBest: { ...state.activityBest, [gameId]: Math.max(state.activityBest[gameId], score) },
+          activityBest: { ...state.activityBest, [gameId]: Math.max(state.activityBest[gameId], safeScore) },
           needs: {
             ...settled.needs,
-            joy: clampNeed(settled.needs.joy + Math.min(28, 8 + score)),
+            joy: clampNeed(settled.needs.joy + Math.min(28, 8 + safeScore)),
             energy: clampNeed(settled.needs.energy - 6),
             hunger: clampNeed(settled.needs.hunger - 2),
           },
-          bond: clampNeed(state.bond + 2 + score / 10),
+          bond: clampNeed(state.bond + 2 + safeScore / 10),
           lastAction: 'activity' as const,
           actionNonce: state.actionNonce + 1,
           lastReply: `${state.petName} found ${reward} Sparks${progressionReady ? ' and a +6 growth echo' : ''} in the Tamagochi Arcade!`,
@@ -203,7 +219,7 @@ export const useGameStore = create<GameState>()(
           lastReply: equipped ? `${item.name} is now part of Mori’s world.` : `${item.name} returned to the keepsake drawer.`,
         }
       }),
-      openStory: () => set((state) => ({ storyOpen: state.storyIndex < STORY_EVENTS.length })),
+      openStory: () => set((state) => ({ storyOpen: isStoryUnlocked(state.storyIndex, state.bond) })),
       closeStory: () => set({ storyOpen: false }),
       setTheme: (themeId) => set({ themeId, lastReply: null }),
       setMode: (mode) => set((state) => ({ ...settleTimedState(state, Date.now()), mode })),
@@ -214,7 +230,6 @@ export const useGameStore = create<GameState>()(
       version: 3,
       migrate: (persistedState) => normalizeSnapshot(persistedState),
       merge: (persistedState, currentState) => ({ ...currentState, ...normalizeSnapshot(persistedState) }),
-      onRehydrateStorage: () => (state) => state?.tick(),
     },
   ),
 )

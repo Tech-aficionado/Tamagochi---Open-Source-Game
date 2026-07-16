@@ -1,8 +1,14 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useGameStore } from '../game/store'
 import type { MiniGameId } from '../game/types'
 
-const PADS = ['●', '▲', '■', '✦'] as const
+const ROUND_DURATION_MS = 12_000
+const PADS = [
+  { glyph: '●', label: 'Circle' },
+  { glyph: '▲', label: 'Triangle' },
+  { glyph: '■', label: 'Square' },
+  { glyph: '✦', label: 'Star' },
+] as const
 
 function StarCatch({ onClose }: { onClose: () => void }) {
   const complete = useGameStore((state) => state.completeActivity)
@@ -10,21 +16,40 @@ function StarCatch({ onClose }: { onClose: () => void }) {
   const [score, setScore] = useState(0)
   const [timeLeft, setTimeLeft] = useState(12)
   const [position, setPosition] = useState({ x: 50, y: 50 })
+  const scoreRef = useRef(0)
 
   useEffect(() => {
     if (phase !== 'playing') return
-    if (timeLeft <= 0) {
-      complete('star-catch', score)
-      setPhase('done')
-      return
-    }
-    const timer = window.setTimeout(() => setTimeLeft((time) => time - 1), 1_000)
-    return () => window.clearTimeout(timer)
-  }, [complete, phase, score, timeLeft])
+    const deadline = Date.now() + ROUND_DURATION_MS
+    let timer: number
 
-  const start = () => { setScore(0); setTimeLeft(12); setPhase('playing') }
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1_000))
+      setTimeLeft(remaining)
+      if (remaining === 0) {
+        complete('star-catch', scoreRef.current)
+        setPhase('done')
+        return
+      }
+      timer = window.setTimeout(updateTimer, 200)
+    }
+
+    updateTimer()
+    return () => window.clearTimeout(timer)
+  }, [complete, phase])
+
+  const start = () => {
+    scoreRef.current = 0
+    setScore(0)
+    setTimeLeft(12)
+    setPhase('playing')
+  }
   const catchStar = () => {
-    setScore((value) => value + 1)
+    setScore((value) => {
+      const nextScore = value + 1
+      scoreRef.current = nextScore
+      return nextScore
+    })
     setPosition({ x: 10 + Math.random() * 80, y: 14 + Math.random() * 72 })
   }
 
@@ -79,11 +104,17 @@ function MemoryFlip({ onClose }: { onClose: () => void }) {
     <GameShell title="Signal Memory" subtitle="Remember Mori’s five-symbol secret signal." onClose={onClose}>
       <div className="memory-board">
         {phase === 'ready' && <GamePrompt icon="◆" title="Watch. Remember. Repeat." body="The signal is visible for just a moment." action="SHOW SIGNAL" onAction={start} />}
-        {phase === 'preview' && <div className="signal-preview" aria-live="polite">{sequence.map((value, index) => <span key={index}>{PADS[value]}</span>)}</div>}
+        {phase === 'preview' && (
+          <div className="signal-preview" aria-label={`Signal: ${sequence.map((value) => PADS[value].label).join(', ')}`}>
+            {sequence.map((value, index) => <span key={index} aria-hidden="true">{PADS[value].glyph}</span>)}
+          </div>
+        )}
         {phase === 'input' && (
           <div className="signal-input">
-            <p>{picks.map((value) => PADS[value]).join('  ') || 'YOUR SIGNAL…'}</p>
-            <div>{PADS.map((pad, index) => <button key={pad} onClick={() => pick(index)}>{pad}</button>)}</div>
+            <p aria-label={picks.length ? `Your signal: ${picks.map((value) => PADS[value].label).join(', ')}` : 'Your signal is empty'}>
+              {picks.map((value) => PADS[value].glyph).join('  ') || 'YOUR SIGNAL…'}
+            </p>
+            <div>{PADS.map((pad, index) => <button key={pad.label} aria-label={`Choose ${pad.label}`} onClick={() => pick(index)}>{pad.glyph}</button>)}</div>
           </div>
         )}
         {phase === 'done' && <GamePrompt icon={won ? '♥' : '◇'} title={won ? 'Perfect signal!' : `${picks.length} symbols remembered`} body={won ? 'A clear memory—and 10 bonus Sparks.' : 'The signal faded, but Mori loved trying with you.'} action="TRY AGAIN" onAction={start} />}
@@ -101,10 +132,25 @@ function GamePrompt({ icon, title, body, action, onAction }: { icon: string; tit
 }
 
 function GameShell({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: React.ReactNode }) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    closeButtonRef.current?.focus()
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      previousFocus?.focus()
+    }
+  }, [onClose])
+
   return (
     <div className="game-overlay" role="presentation">
       <section className="game-dialog" role="dialog" aria-modal="true" aria-labelledby="game-title">
-        <header><div><p className="eyebrow">TAMAGOCHI ARCADE</p><h2 id="game-title">{title}</h2><span>{subtitle}</span></div><button onClick={onClose} aria-label="Close game">×</button></header>
+        <header><div><p className="eyebrow">TAMAGOCHI ARCADE</p><h2 id="game-title">{title}</h2><span>{subtitle}</span></div><button ref={closeButtonRef} onClick={onClose} aria-label="Close game">×</button></header>
         {children}
       </section>
     </div>

@@ -5,13 +5,50 @@ import * as THREE from 'three'
 import type { ActionSignal, CareAction, GrowthStageId, IncidentId, KeepsakeId, PersonalityId, PetMood, ThemeDefinition } from '../game/types'
 
 const CARE_ACTIONS = new Set<CareAction>(['feed', 'play', 'wash', 'rest', 'cuddle', 'explore'])
-const ACTION_DURATION: Record<CareAction, number> = {
-  feed: 2.2,
-  play: 2.35,
-  wash: 2.3,
-  rest: 2.8,
-  cuddle: 2.65,
-  explore: 2.45,
+interface ActionSpec {
+  duration: number
+  anticipateEnd: number
+  contactEnd: number
+  holdEnd: number
+}
+
+const ACTION_SPEC: Record<CareAction, ActionSpec> = {
+  feed: { duration: 2.35, anticipateEnd: 0.16, contactEnd: 0.52, holdEnd: 0.78 },
+  play: { duration: 2.45, anticipateEnd: 0.18, contactEnd: 0.63, holdEnd: 0.8 },
+  wash: { duration: 2.5, anticipateEnd: 0.16, contactEnd: 0.58, holdEnd: 0.78 },
+  rest: { duration: 3.2, anticipateEnd: 0.22, contactEnd: 0.42, holdEnd: 0.84 },
+  cuddle: { duration: 3, anticipateEnd: 0.18, contactEnd: 0.48, holdEnd: 0.83 },
+  explore: { duration: 2.7, anticipateEnd: 0.16, contactEnd: 0.62, holdEnd: 0.8 },
+}
+
+const smoothRange = (value: number, start: number, end: number) => {
+  const progress = THREE.MathUtils.clamp((value - start) / Math.max(0.001, end - start), 0, 1)
+  return progress * progress * (3 - 2 * progress)
+}
+
+const ARM_POSES: Record<CareAction | 'idle', {
+  left: [number, number, number]
+  right: [number, number, number]
+  leftRotation: number
+  rightRotation: number
+}> = {
+  idle: { left: [-0.68, -0.06, 0.28], right: [0.68, -0.06, 0.28], leftRotation: -0.35, rightRotation: 0.35 },
+  feed: { left: [-0.3, 0.02, 0.7], right: [0.3, 0.02, 0.7], leftRotation: -0.88, rightRotation: 0.88 },
+  play: { left: [-0.67, 0.45, 0.3], right: [0.67, 0.45, 0.3], leftRotation: 1.05, rightRotation: -1.05 },
+  wash: { left: [-0.78, 0.2, 0.32], right: [0.78, 0.2, 0.32], leftRotation: -1.1, rightRotation: 1.1 },
+  rest: { left: [-0.4, -0.24, 0.58], right: [0.4, -0.24, 0.58], leftRotation: -0.72, rightRotation: 0.72 },
+  cuddle: { left: [-0.24, -0.02, 0.75], right: [0.24, -0.02, 0.78], leftRotation: -1.15, rightRotation: 1.15 },
+  explore: { left: [-0.65, -0.04, 0.3], right: [0.72, 0.32, 0.42], leftRotation: -0.28, rightRotation: -1.12 },
+}
+
+const EAR_POSES: Record<CareAction | 'idle', [number, number]> = {
+  idle: [-0.35, 0.35],
+  feed: [-0.28, 0.28],
+  play: [-0.08, 0.08],
+  wash: [-0.48, 0.48],
+  rest: [-0.72, 0.72],
+  cuddle: [-0.62, 0.62],
+  explore: [-0.08, 0.08],
 }
 
 function isCareAction(action: ActionSignal): action is CareAction {
@@ -88,12 +125,47 @@ function ActionEffects({ action, color, reducedMotion }: { action: CareAction; c
   useFrame((_, delta) => {
     if (!group.current) return
     elapsed.current += delta
-    const duration = ACTION_DURATION[action]
-    const progress = Math.min(1, elapsed.current / duration)
-    const envelope = Math.sin(progress * Math.PI)
-    group.current.position.y = reducedMotion ? progress * 0.12 : progress * 0.75
-    group.current.rotation.y = reducedMotion ? 0 : progress * Math.PI * 2
-    group.current.scale.setScalar(1.05 + envelope * 0.65)
+    const spec = ACTION_SPEC[action]
+    const progress = Math.min(1, elapsed.current / spec.duration)
+    const anticipation = smoothRange(progress, 0, spec.anticipateEnd)
+    const contact = smoothRange(progress, spec.anticipateEnd, spec.contactEnd)
+    const hold = smoothRange(progress, spec.contactEnd, spec.holdEnd)
+    const recovery = smoothRange(progress, spec.holdEnd, 1)
+    const contactPulse = Math.sin(contact * Math.PI)
+    const holdPulse = Math.sin(hold * Math.PI)
+    const travel = reducedMotion ? 0 : 1
+    let x = 0
+    let y = 0
+    let rotateY = 0
+    let rotateZ = 0
+    let scale = 1.02 + anticipation * 0.08 + contactPulse * 0.14 + holdPulse * 0.07 - recovery * 0.08
+
+    if (action === 'feed') {
+      x = -0.4 * contact * (1 - recovery) * travel
+      y = 0.12 * contact * (1 - recovery) * travel
+    } else if (action === 'play') {
+      y = 0.24 * contactPulse * travel
+      rotateY = 0.6 * contactPulse * travel
+      scale += 0.12 * contactPulse
+    } else if (action === 'wash') {
+      y = 0.06 * holdPulse * travel
+      rotateZ = Math.sin(contact * Math.PI * 5) * 0.14 * (1 - recovery) * travel
+    } else if (action === 'rest') {
+      y = -0.08 * anticipation * (1 - recovery) * travel
+      scale = 1.02 + anticipation * 0.06 + holdPulse * 0.04 - recovery * 0.04
+    } else if (action === 'cuddle') {
+      y = 0.035 * holdPulse * travel
+      scale = 1.02 + anticipation * 0.04 + contactPulse * 0.09 + holdPulse * 0.05 - recovery * 0.04
+    } else if (action === 'explore') {
+      x = 0.18 * contactPulse * travel
+      rotateY = 0.4 * contactPulse * travel
+    }
+
+    group.current.position.x = THREE.MathUtils.damp(group.current.position.x, x, 12, delta)
+    group.current.position.y = THREE.MathUtils.damp(group.current.position.y, y, 12, delta)
+    group.current.rotation.y = THREE.MathUtils.damp(group.current.rotation.y, rotateY, 12, delta)
+    group.current.rotation.z = THREE.MathUtils.damp(group.current.rotation.z, rotateZ, 12, delta)
+    group.current.scale.setScalar(THREE.MathUtils.damp(group.current.scale.x, scale, 12, delta))
   })
 
   const bubblePositions: [number, number, number][] = [[-0.7, 0.2, 0.6], [-0.45, 0.9, 0.4], [0.62, 0.45, 0.6], [0.4, 1.1, 0.2], [0, 1.35, 0.1]]
@@ -111,7 +183,7 @@ function ActionEffects({ action, color, reducedMotion }: { action: CareAction; c
         <mesh key={index} position={position} rotation={[0.4, 0.3, index]}><octahedronGeometry args={[0.16]} /><meshStandardMaterial color={index % 2 ? color : '#fff4a8'} emissive={color} emissiveIntensity={0.3} /></mesh>
       ))}
       {action === 'wash' && bubblePositions.map((position, index) => (
-        <mesh key={index} position={position}><sphereGeometry args={[0.11 + index * 0.018, 14, 10]} /><meshPhysicalMaterial color="#bff7ff" transparent opacity={0.58} roughness={0.08} transmission={0.25} /></mesh>
+        <mesh key={index} position={position}><sphereGeometry args={[0.11 + index * 0.018, 14, 10]} /><meshStandardMaterial color="#bff7ff" transparent opacity={0.58} roughness={0.18} /></mesh>
       ))}
       {action === 'rest' && (
         <group position={[0.75, 1.25, 0.2]}>
@@ -120,7 +192,7 @@ function ActionEffects({ action, color, reducedMotion }: { action: CareAction; c
         </group>
       )}
       {action === 'cuddle' && (
-        <group><Heart position={[-0.72, 0.75, 0.4]} /><Heart position={[0.66, 1.1, 0.2]} scale={0.78} /><Heart position={[0, 1.55, 0]} scale={0.62} /></group>
+        <group><Heart position={[-0.38, 0.78, 0.4]} scale={0.82} /><Heart position={[0.38, 0.93, 0.3]} scale={0.7} /><Heart position={[0, 1.38, 0.1]} scale={0.58} /></group>
       )}
       {action === 'explore' && (
         <group position={[0, 0.85, 0.25]}>
@@ -147,9 +219,15 @@ interface PetProps {
 }
 
 function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion, personality, growthStage, wearableId, onPlay }: PetProps) {
-  const group = useRef<THREE.Group>(null)
+  const rig = useRef<THREE.Group>(null)
+  const leftArm = useRef<THREE.Mesh>(null)
+  const rightArm = useRef<THREE.Mesh>(null)
+  const leftEar = useRef<THREE.Mesh>(null)
+  const rightEar = useRef<THREE.Mesh>(null)
   const leftEye = useRef<THREE.Mesh>(null)
   const rightEye = useRef<THREE.Mesh>(null)
+  const leftBrow = useRef<THREE.Mesh>(null)
+  const rightBrow = useRef<THREE.Mesh>(null)
   const actionElapsed = useRef(10)
   const pulse = useRef(0)
   const [activeAction, setActiveAction] = useState<CareAction | null>(null)
@@ -162,65 +240,94 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
     }
     actionElapsed.current = 0
     setActiveAction(lastAction)
-    const timer = window.setTimeout(() => setActiveAction(null), ACTION_DURATION[lastAction] * 1_000)
+    const timer = window.setTimeout(() => setActiveAction(null), ACTION_SPEC[lastAction].duration * 1_000)
     return () => window.clearTimeout(timer)
   }, [actionNonce, lastAction])
 
   useFrame((state, delta) => {
-    if (!group.current) return
+    if (!rig.current) return
     const time = state.clock.elapsedTime
     actionElapsed.current += delta
     pulse.current = Math.max(0, pulse.current - delta * 1.8)
 
-    const duration = activeAction ? ACTION_DURATION[activeAction] : 1
-    const progress = Math.min(1, actionElapsed.current / duration)
-    const envelope = activeAction ? Math.sin(progress * Math.PI) : 0
-    const motion = reducedMotion ? 0.42 : 1
-    const idleY = reducedMotion ? 0 : Math.sin(time * 2.2) * 0.065
-    const idleTilt = reducedMotion ? 0 : Math.sin(time * 1.4) * 0.03
+    const spec = activeAction ? ACTION_SPEC[activeAction] : null
+    const progress = spec ? Math.min(1, actionElapsed.current / spec.duration) : 0
+    const anticipation = spec ? smoothRange(progress, 0, spec.anticipateEnd) : 0
+    const contact = spec ? smoothRange(progress, spec.anticipateEnd, spec.contactEnd) : 0
+    const hold = spec ? smoothRange(progress, spec.contactEnd, spec.holdEnd) : 0
+    const recovery = spec ? smoothRange(progress, spec.holdEnd, 1) : 0
+    const poseWeight = anticipation * (1 - recovery)
+    const travel = reducedMotion ? 0.04 : 1
+    const bodyMotion = reducedMotion ? 0.12 : 1
+    const idleMotion = reducedMotion ? 0 : 1
+    const idleBreath = (Math.sin(time * 1.72) * 0.014 + Math.sin(time * 0.63 + 0.8) * 0.006) * idleMotion
+    const idleY = (Math.sin(time * 1.13) * 0.035 + Math.sin(time * 0.47 + 1.4) * 0.012) * idleMotion
+    const idleTilt = Math.sin(time * 0.69 + 0.3) * 0.025 * idleMotion
+    const stageScale = growthStage === 'luminary' ? 1.1 : growthStage === 'bloom' ? 1.04 : 0.94
     let x = 0
     let y = idleY
     let rotateX = 0
     let rotateY = 0
     let rotateZ = idleTilt
-    const stageScale = growthStage === 'luminary' ? 1.1 : growthStage === 'bloom' ? 1.04 : 0.94
     let scaleX = stageScale
-    let scaleY = stageScale + (reducedMotion ? 0 : Math.sin(time * 2) * 0.012)
+    let scaleY = stageScale + idleBreath
     let scaleZ = stageScale
+    let exploreScan = 0
 
     if (activeAction === 'feed') {
-      rotateX = Math.sin(progress * Math.PI * 6) * 0.28 * envelope * motion
-      y -= envelope * 0.12 * motion
-      scaleX += envelope * 0.14
-      scaleY -= envelope * 0.16
+      const reach = anticipation * (1 - contact)
+      const chew = Math.sin(contact * Math.PI * 6) * (1 - hold * 0.72) * (1 - recovery)
+      const swallow = Math.sin(hold * Math.PI)
+      rotateX = (reach * 0.12 + chew * 0.055 - swallow * 0.08) * bodyMotion
+      y -= (reach * 0.07 + Math.abs(chew) * 0.025) * travel
+      scaleX += Math.abs(chew) * 0.045 * bodyMotion
+      scaleY -= Math.abs(chew) * 0.04 * bodyMotion
     } else if (activeAction === 'play') {
-      y += Math.abs(Math.sin(progress * Math.PI * 4)) * 0.82 * envelope * motion
-      rotateY = Math.sin(progress * Math.PI * 2) * 1.35 * envelope * motion
-      rotateZ += Math.sin(progress * Math.PI * 4) * 0.18 * envelope * motion
-      scaleX += envelope * 0.16
-      scaleY += envelope * 0.2
+      const crouch = anticipation * (1 - contact)
+      const jump = Math.sin(contact * Math.PI)
+      const landing = Math.sin(smoothRange(progress, spec!.contactEnd, Math.min(spec!.holdEnd, spec!.contactEnd + 0.11)) * Math.PI)
+      const rebound = Math.sin(hold * Math.PI)
+      y += (jump * 0.72 - crouch * 0.16 + rebound * 0.11) * travel
+      rotateY = jump * 0.72 * travel
+      rotateZ += Math.sin(contact * Math.PI * 2) * 0.08 * travel
+      scaleX += (crouch * 0.1 + landing * 0.18) * bodyMotion
+      scaleY += (jump * 0.08 - crouch * 0.1 - landing * 0.15) * bodyMotion
+      scaleZ += landing * 0.08 * bodyMotion
     } else if (activeAction === 'wash') {
-      rotateZ += Math.sin(progress * Math.PI * 14) * 0.42 * envelope * motion
-      x = Math.sin(progress * Math.PI * 14) * 0.2 * envelope * motion
-      scaleX += envelope * 0.12
-      scaleY -= envelope * 0.08
+      const brace = anticipation * (1 - contact)
+      const scrub = Math.sin(contact * Math.PI * 6) * (1 - hold) * (1 - recovery)
+      const shake = Math.sin(hold * Math.PI) * Math.sin(hold * Math.PI * 2)
+      x = (scrub * 0.08 + shake * 0.15) * travel
+      rotateZ += (brace * -0.08 + scrub * 0.14 + shake * 0.24) * travel
+      scaleX += Math.abs(shake) * 0.07 * bodyMotion
+      scaleY -= Math.abs(shake) * 0.05 * bodyMotion
     } else if (activeAction === 'rest') {
-      y -= envelope * 0.38 * motion
-      rotateZ -= envelope * 0.18 * motion
-      scaleX += envelope * 0.2
-      scaleY -= envelope * 0.24
+      const lower = poseWeight
+      const exhale = Math.sin(contact * Math.PI)
+      const sleepBreath = Math.sin(time * 1.25) * (1 - recovery)
+      const wakeStretch = Math.sin(recovery * Math.PI)
+      y += (-lower * 0.3 - exhale * 0.04 + wakeStretch * 0.09) * travel
+      rotateZ -= lower * 0.13 * bodyMotion
+      scaleX += (lower * 0.13 + sleepBreath * 0.018) * bodyMotion
+      scaleY += (-lower * 0.17 + sleepBreath * 0.012 + wakeStretch * 0.08) * bodyMotion
     } else if (activeAction === 'cuddle') {
-      x -= envelope * 0.3 * motion
-      y -= envelope * 0.12 * motion
-      rotateZ -= envelope * 0.34 * motion
-      scaleX += envelope * 0.28
-      scaleY -= envelope * 0.22
-      scaleZ += envelope * 0.16
+      const embrace = contact * (1 - recovery)
+      const heartBeat = Math.sin(hold * Math.PI * 3) * (1 - recovery)
+      y -= embrace * 0.07 * travel
+      rotateX = embrace * 0.13 * bodyMotion
+      scaleX += (embrace * 0.16 + Math.abs(heartBeat) * 0.025) * bodyMotion
+      scaleY -= embrace * 0.11 * bodyMotion
+      scaleZ += embrace * 0.1 * bodyMotion
     } else if (activeAction === 'explore') {
-      x = Math.sin(progress * Math.PI * 4) * 0.48 * envelope * motion
-      y += Math.abs(Math.sin(progress * Math.PI * 4)) * 0.26 * envelope * motion
-      rotateY = Math.sin(progress * Math.PI * 3) * 0.62 * envelope * motion
-      rotateZ += Math.sin(progress * Math.PI * 4) * 0.15 * envelope * motion
+      const step = Math.sin(contact * Math.PI * 4) * (1 - hold) * (1 - recovery)
+      const footLift = Math.abs(Math.sin(contact * Math.PI * 2)) * (1 - hold)
+      exploreScan = -0.38 * smoothRange(hold, 0, 0.28)
+        + 0.72 * smoothRange(hold, 0.48, 0.72)
+        - 0.34 * smoothRange(hold, 0.82, 1)
+      x = (poseWeight * 0.13 + step * 0.08) * travel
+      y += footLift * 0.11 * travel
+      rotateY = exploreScan * travel
+      rotateZ += (step * 0.09 - anticipation * (1 - contact) * 0.11) * travel
     } else {
       const bounce = Math.sin((1 - pulse.current) * Math.PI) * pulse.current * 0.18
       scaleX += bounce
@@ -228,74 +335,196 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
       scaleZ += bounce
     }
 
-    group.current.position.set(x, y, 0.4)
-    group.current.rotation.set(rotateX, rotateY, rotateZ)
-    group.current.scale.set(scaleX, scaleY, scaleZ)
+    rig.current.position.x = THREE.MathUtils.damp(rig.current.position.x, x, 13, delta)
+    rig.current.position.y = THREE.MathUtils.damp(rig.current.position.y, y, 13, delta)
+    rig.current.position.z = THREE.MathUtils.damp(rig.current.position.z, 0, 13, delta)
+    rig.current.rotation.x = THREE.MathUtils.damp(rig.current.rotation.x, rotateX, 13, delta)
+    rig.current.rotation.y = THREE.MathUtils.damp(rig.current.rotation.y, rotateY, 13, delta)
+    rig.current.rotation.z = THREE.MathUtils.damp(rig.current.rotation.z, rotateZ, 13, delta)
+    rig.current.scale.x = THREE.MathUtils.damp(rig.current.scale.x, scaleX, 13, delta)
+    rig.current.scale.y = THREE.MathUtils.damp(rig.current.scale.y, scaleY, 13, delta)
+    rig.current.scale.z = THREE.MathUtils.damp(rig.current.scale.z, scaleZ, 13, delta)
+
+    const idleArms = ARM_POSES.idle
+    const actionArms = activeAction ? ARM_POSES[activeAction] : idleArms
+    let leftArmX = THREE.MathUtils.lerp(idleArms.left[0], actionArms.left[0], poseWeight)
+    let leftArmY = THREE.MathUtils.lerp(idleArms.left[1], actionArms.left[1], poseWeight)
+    let leftArmZ = THREE.MathUtils.lerp(idleArms.left[2], actionArms.left[2], poseWeight)
+    let rightArmX = THREE.MathUtils.lerp(idleArms.right[0], actionArms.right[0], poseWeight)
+    let rightArmY = THREE.MathUtils.lerp(idleArms.right[1], actionArms.right[1], poseWeight)
+    let rightArmZ = THREE.MathUtils.lerp(idleArms.right[2], actionArms.right[2], poseWeight)
+    let leftArmRotation = THREE.MathUtils.lerp(idleArms.leftRotation, actionArms.leftRotation, poseWeight)
+    let rightArmRotation = THREE.MathUtils.lerp(idleArms.rightRotation, actionArms.rightRotation, poseWeight)
+
+    if (activeAction === 'cuddle') {
+      const open = anticipation * (1 - contact)
+      const close = contact * (1 - recovery)
+      leftArmX = THREE.MathUtils.lerp(idleArms.left[0], -0.82, open)
+      leftArmY = THREE.MathUtils.lerp(idleArms.left[1], 0.22, open)
+      leftArmZ = THREE.MathUtils.lerp(idleArms.left[2], 0.42, open)
+      rightArmX = THREE.MathUtils.lerp(idleArms.right[0], 0.82, open)
+      rightArmY = THREE.MathUtils.lerp(idleArms.right[1], 0.22, open)
+      rightArmZ = THREE.MathUtils.lerp(idleArms.right[2], 0.42, open)
+      leftArmRotation = THREE.MathUtils.lerp(idleArms.leftRotation, 1.08, open)
+      rightArmRotation = THREE.MathUtils.lerp(idleArms.rightRotation, -1.08, open)
+      leftArmX = THREE.MathUtils.lerp(leftArmX, actionArms.left[0], close)
+      leftArmY = THREE.MathUtils.lerp(leftArmY, actionArms.left[1], close)
+      leftArmZ = THREE.MathUtils.lerp(leftArmZ, actionArms.left[2], close)
+      rightArmX = THREE.MathUtils.lerp(rightArmX, actionArms.right[0], close)
+      rightArmY = THREE.MathUtils.lerp(rightArmY, actionArms.right[1], close)
+      rightArmZ = THREE.MathUtils.lerp(rightArmZ, actionArms.right[2], close)
+      leftArmRotation = THREE.MathUtils.lerp(leftArmRotation, actionArms.leftRotation, close)
+      rightArmRotation = THREE.MathUtils.lerp(rightArmRotation, actionArms.rightRotation, close)
+    } else if (activeAction === 'wash') {
+      const scrub = Math.sin(contact * Math.PI * 6) * (1 - hold) * (1 - recovery)
+      leftArmY += scrub * 0.12
+      rightArmY -= scrub * 0.12
+      leftArmRotation += scrub * 0.18
+      rightArmRotation += scrub * 0.18
+    } else if (activeAction === 'explore') {
+      const step = Math.sin(contact * Math.PI * 4) * (1 - hold) * (1 - recovery)
+      leftArmY += step * 0.13
+      rightArmY -= step * 0.13
+      leftArmRotation += step * 0.25
+      rightArmRotation += step * 0.25
+    } else if (activeAction === 'rest') {
+      const wakeStretch = Math.sin(recovery * Math.PI)
+      leftArmY += wakeStretch * 0.48
+      rightArmY += wakeStretch * 0.48
+      leftArmRotation += wakeStretch * 1.28
+      rightArmRotation -= wakeStretch * 1.28
+    } else if (activeAction === 'feed') {
+      const chew = Math.sin(contact * Math.PI * 6) * (1 - hold * 0.7) * (1 - recovery)
+      leftArmY += chew * 0.035
+      rightArmY -= chew * 0.035
+    }
+
+    if (leftArm.current && rightArm.current) {
+      leftArm.current.position.x = THREE.MathUtils.damp(leftArm.current.position.x, leftArmX, 15, delta)
+      leftArm.current.position.y = THREE.MathUtils.damp(leftArm.current.position.y, leftArmY, 15, delta)
+      leftArm.current.position.z = THREE.MathUtils.damp(leftArm.current.position.z, leftArmZ, 15, delta)
+      leftArm.current.rotation.z = THREE.MathUtils.damp(leftArm.current.rotation.z, leftArmRotation, 15, delta)
+      rightArm.current.position.x = THREE.MathUtils.damp(rightArm.current.position.x, rightArmX, 15, delta)
+      rightArm.current.position.y = THREE.MathUtils.damp(rightArm.current.position.y, rightArmY, 15, delta)
+      rightArm.current.position.z = THREE.MathUtils.damp(rightArm.current.position.z, rightArmZ, 15, delta)
+      rightArm.current.rotation.z = THREE.MathUtils.damp(rightArm.current.rotation.z, rightArmRotation, 15, delta)
+    }
+
+    const idleEars = EAR_POSES.idle
+    const actionEars = activeAction ? EAR_POSES[activeAction] : idleEars
+    const earTwitch = activeAction || reducedMotion ? 0 : Math.pow(Math.max(0, Math.sin(time * 0.73 - 1.1)), 14) * 0.12
+    let leftEarRotation = THREE.MathUtils.lerp(idleEars[0], actionEars[0], poseWeight) - earTwitch
+    let rightEarRotation = THREE.MathUtils.lerp(idleEars[1], actionEars[1], poseWeight) + earTwitch * 0.45
+    if (activeAction === 'explore') {
+      leftEarRotation -= exploreScan * 0.22
+      rightEarRotation -= exploreScan * 0.12
+    }
+    const earLift = (activeAction === 'play' || activeAction === 'explore') ? poseWeight * 0.07 : activeAction === 'rest' ? -poseWeight * 0.04 : 0
+    const earScale = 1 + ((activeAction === 'play' || activeAction === 'explore') ? poseWeight * 0.1 : 0)
+    if (leftEar.current && rightEar.current) {
+      leftEar.current.position.y = THREE.MathUtils.damp(leftEar.current.position.y, 0.76 + earLift, 12, delta)
+      rightEar.current.position.y = THREE.MathUtils.damp(rightEar.current.position.y, 0.76 + earLift, 12, delta)
+      leftEar.current.rotation.z = THREE.MathUtils.damp(leftEar.current.rotation.z, leftEarRotation, 12, delta)
+      rightEar.current.rotation.z = THREE.MathUtils.damp(rightEar.current.rotation.z, rightEarRotation, 12, delta)
+      leftEar.current.scale.setScalar(THREE.MathUtils.damp(leftEar.current.scale.x, earScale, 12, delta))
+      rightEar.current.scale.setScalar(THREE.MathUtils.damp(rightEar.current.scale.x, earScale, 12, delta))
+    }
 
     const restingEye = mood === 'sleepy' || mood === 'unwell' ? 0.12 : mood === 'grumpy' ? 0.72 : mood === 'radiant' ? 1.16 : 1
-    const blink = !activeAction && restingEye > 0.2 && Math.sin(time * 0.82) > 0.975 ? 0.08 : restingEye
-    let eyeTarget = blink
-    if (activeAction === 'rest' || activeAction === 'cuddle') eyeTarget = 0.12
-    else if (activeAction === 'feed') eyeTarget = 0.42
-    else if (activeAction === 'wash') eyeTarget = 0.15 + Math.abs(Math.sin(progress * Math.PI * 8)) * 0.55
-    else if (activeAction === 'play' || activeAction === 'explore') eyeTarget = 1.24
+    const naturalBlink = !activeAction && restingEye > 0.2 && Math.sin(time * 0.79) + Math.sin(time * 0.31 + 0.7) > 1.82
+    let eyeTarget = naturalBlink ? 0.08 : restingEye
+    let gazeX = 0
+    let gazeY = 0
+    if (activeAction === 'rest') eyeTarget = THREE.MathUtils.lerp(restingEye, 0.1, contact * (1 - recovery))
+    else if (activeAction === 'cuddle') eyeTarget = THREE.MathUtils.lerp(restingEye, 0.1, contact * (1 - recovery))
+    else if (activeAction === 'feed') {
+      eyeTarget = 0.52 + Math.abs(Math.sin(contact * Math.PI * 6)) * 0.12 * (1 - hold)
+      gazeX = 0.018 * poseWeight
+      gazeY = -0.018 * poseWeight
+    } else if (activeAction === 'wash') eyeTarget = 0.28 + Math.abs(Math.sin(contact * Math.PI * 6)) * 0.48 * (1 - hold)
+    else if (activeAction === 'play') {
+      eyeTarget = 1.24
+      gazeY = Math.sin(contact * Math.PI) * 0.045
+    } else if (activeAction === 'explore') {
+      eyeTarget = 1.08
+      gazeX = exploreScan * 0.065
+      gazeY = 0.012 * poseWeight
+    }
     if (leftEye.current && rightEye.current) {
-      leftEye.current.scale.y = THREE.MathUtils.lerp(leftEye.current.scale.y, eyeTarget, 0.25)
-      rightEye.current.scale.y = THREE.MathUtils.lerp(rightEye.current.scale.y, eyeTarget, 0.25)
+      leftEye.current.scale.y = THREE.MathUtils.damp(leftEye.current.scale.y, eyeTarget, 18, delta)
+      rightEye.current.scale.y = THREE.MathUtils.damp(rightEye.current.scale.y, eyeTarget, 18, delta)
+      leftEye.current.position.x = THREE.MathUtils.damp(leftEye.current.position.x, -0.27 + gazeX, 16, delta)
+      rightEye.current.position.x = THREE.MathUtils.damp(rightEye.current.position.x, 0.27 + gazeX, 16, delta)
+      leftEye.current.position.y = THREE.MathUtils.damp(leftEye.current.position.y, 0.25 + gazeY, 16, delta)
+      rightEye.current.position.y = THREE.MathUtils.damp(rightEye.current.position.y, 0.25 + gazeY, 16, delta)
+    }
+
+    let browVisibility = mood === 'grumpy' && !activeAction ? 1 : 0
+    let leftBrowRotation = -0.22
+    let rightBrowRotation = 0.22
+    let leftBrowY = 0.49
+    let rightBrowY = 0.49
+    if (activeAction === 'play') {
+      browVisibility = poseWeight
+      leftBrowRotation = 0.15
+      rightBrowRotation = -0.15
+      leftBrowY = 0.52
+      rightBrowY = 0.52
+    } else if (activeAction === 'explore') {
+      browVisibility = poseWeight
+      leftBrowRotation = -0.06
+      rightBrowRotation = -0.3
+      leftBrowY = 0.49
+      rightBrowY = 0.54
+    }
+    if (leftBrow.current && rightBrow.current) {
+      leftBrow.current.scale.x = THREE.MathUtils.damp(leftBrow.current.scale.x, browVisibility, 18, delta)
+      leftBrow.current.scale.y = THREE.MathUtils.damp(leftBrow.current.scale.y, browVisibility, 18, delta)
+      leftBrow.current.scale.z = THREE.MathUtils.damp(leftBrow.current.scale.z, browVisibility, 18, delta)
+      rightBrow.current.scale.x = THREE.MathUtils.damp(rightBrow.current.scale.x, browVisibility, 18, delta)
+      rightBrow.current.scale.y = THREE.MathUtils.damp(rightBrow.current.scale.y, browVisibility, 18, delta)
+      rightBrow.current.scale.z = THREE.MathUtils.damp(rightBrow.current.scale.z, browVisibility, 18, delta)
+      leftBrow.current.rotation.z = THREE.MathUtils.damp(leftBrow.current.rotation.z, leftBrowRotation, 18, delta)
+      rightBrow.current.rotation.z = THREE.MathUtils.damp(rightBrow.current.rotation.z, rightBrowRotation, 18, delta)
+      leftBrow.current.position.y = THREE.MathUtils.damp(leftBrow.current.position.y, leftBrowY, 18, delta)
+      rightBrow.current.position.y = THREE.MathUtils.damp(rightBrow.current.position.y, rightBrowY, 18, delta)
     }
   })
 
   const closedHappy = activeAction === 'cuddle' || activeAction === 'rest'
-  const openMouth = activeAction === 'feed' || activeAction === 'rest' || activeAction === 'explore'
-  const smiling = activeAction === 'play' || activeAction === 'cuddle' || (!activeAction && (mood === 'happy' || mood === 'radiant'))
+  const openMouth = activeAction === 'feed' || activeAction === 'explore'
+  const smiling = activeAction === 'play' || activeAction === 'cuddle' || activeAction === 'rest' || (!activeAction && (mood === 'happy' || mood === 'radiant'))
   const frowning = !activeAction && (mood === 'grumpy' || mood === 'unwell')
   const cheekOpacity = activeAction === 'cuddle' ? 0.95 : mood === 'radiant' || activeAction === 'play' ? 0.78 : 0.48
-  const armPoses: Record<CareAction | 'idle', {
-    left: [number, number, number]
-    right: [number, number, number]
-    leftRotation: number
-    rightRotation: number
-  }> = {
-    idle: { left: [-0.68, -0.06, 0.28], right: [0.68, -0.06, 0.28], leftRotation: -0.35, rightRotation: 0.35 },
-    feed: { left: [-0.3, 0.02, 0.7], right: [0.3, 0.02, 0.7], leftRotation: -0.88, rightRotation: 0.88 },
-    play: { left: [-0.67, 0.45, 0.3], right: [0.67, 0.45, 0.3], leftRotation: 1.05, rightRotation: -1.05 },
-    wash: { left: [-0.78, 0.2, 0.32], right: [0.78, 0.2, 0.32], leftRotation: -1.1, rightRotation: 1.1 },
-    rest: { left: [-0.4, -0.24, 0.58], right: [0.4, -0.24, 0.58], leftRotation: -0.72, rightRotation: 0.72 },
-    cuddle: { left: [-0.24, -0.02, 0.75], right: [0.24, -0.02, 0.78], leftRotation: -1.15, rightRotation: 1.15 },
-    explore: { left: [-0.65, -0.04, 0.3], right: [0.72, 0.32, 0.42], leftRotation: -0.28, rightRotation: -1.12 },
-  }
-  const armPose = armPoses[activeAction ?? 'idle']
-  const earsRaised = activeAction === 'play' || activeAction === 'explore'
-  const earsDrooped = activeAction === 'rest' || activeAction === 'cuddle'
 
   return (
     <group
-      ref={group}
       position={[0, 0, 0.4]}
       onClick={(event) => { event.stopPropagation(); onPlay() }}
       onPointerEnter={() => { document.body.style.cursor = 'pointer' }}
       onPointerLeave={() => { document.body.style.cursor = 'default' }}
     >
-      <mesh castShadow position={[-0.48, 0.76, -0.02]} rotation={[0, 0, earsRaised ? -0.08 : earsDrooped ? -0.72 : -0.35]} scale={earsRaised ? 1.12 : 1}>
-        <coneGeometry args={[0.28, 0.7, 5]} />
-        <meshStandardMaterial color={accent} roughness={0.72} />
-      </mesh>
-      <mesh castShadow position={[0.48, 0.76, -0.02]} rotation={[0, 0, earsRaised ? 0.08 : earsDrooped ? 0.72 : 0.35]} scale={earsRaised ? 1.12 : 1}>
-        <coneGeometry args={[0.28, 0.7, 5]} />
-        <meshStandardMaterial color={accent} roughness={0.72} />
-      </mesh>
+      <group ref={rig}>
+        <mesh ref={leftEar} castShadow position={[-0.48, 0.76, -0.02]} rotation={[0, 0, EAR_POSES.idle[0]]}>
+          <coneGeometry args={[0.28, 0.7, 5]} />
+          <meshStandardMaterial color={accent} roughness={0.72} />
+        </mesh>
+        <mesh ref={rightEar} castShadow position={[0.48, 0.76, -0.02]} rotation={[0, 0, EAR_POSES.idle[1]]}>
+          <coneGeometry args={[0.28, 0.7, 5]} />
+          <meshStandardMaterial color={accent} roughness={0.72} />
+        </mesh>
       <mesh castShadow position={[0, 0.18, 0]} scale={[1, 1.08, 0.85]}>
         <sphereGeometry args={[0.82, 32, 24]} />
         <meshStandardMaterial color={accent} roughness={0.67} />
       </mesh>
-      <mesh castShadow position={armPose.left} rotation={[0, 0, armPose.leftRotation]} scale={[0.62, 1.18, 0.72]}>
-        <sphereGeometry args={[0.22, 18, 14]} />
-        <meshStandardMaterial color={accent} roughness={0.68} />
-      </mesh>
-      <mesh castShadow position={armPose.right} rotation={[0, 0, armPose.rightRotation]} scale={[0.62, 1.18, 0.72]}>
-        <sphereGeometry args={[0.22, 18, 14]} />
-        <meshStandardMaterial color={accent} roughness={0.68} />
-      </mesh>
+        <mesh ref={leftArm} castShadow position={ARM_POSES.idle.left} rotation={[0, 0, ARM_POSES.idle.leftRotation]} scale={[0.62, 1.18, 0.72]}>
+          <sphereGeometry args={[0.22, 18, 14]} />
+          <meshStandardMaterial color={accent} roughness={0.68} />
+        </mesh>
+        <mesh ref={rightArm} castShadow position={ARM_POSES.idle.right} rotation={[0, 0, ARM_POSES.idle.rightRotation]} scale={[0.62, 1.18, 0.72]}>
+          <sphereGeometry args={[0.22, 18, 14]} />
+          <meshStandardMaterial color={accent} roughness={0.68} />
+        </mesh>
       <mesh castShadow position={[-0.48, -0.62, 0.08]} scale={[1.2, 0.65, 1.2]}>
         <sphereGeometry args={[0.28, 20, 16]} /><meshStandardMaterial color={accent} roughness={0.7} />
       </mesh>
@@ -315,21 +544,11 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
           <mesh position={[0.245, 0.29, 0.76]}><sphereGeometry args={[0.025, 8, 8]} /><meshBasicMaterial color="#fff" /></mesh>
         </>
       )}
-      {(mood === 'grumpy' && !activeAction) && (
-        <>
-          <mesh position={[-0.27, 0.49, 0.72]} rotation={[0, 0, -0.22]}><boxGeometry args={[0.25, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
-          <mesh position={[0.27, 0.49, 0.72]} rotation={[0, 0, 0.22]}><boxGeometry args={[0.25, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
-        </>
-      )}
-      {(activeAction === 'play' || activeAction === 'explore') && (
-        <>
-          <mesh position={[-0.27, 0.5, 0.72]} rotation={[0, 0, 0.12]}><boxGeometry args={[0.23, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
-          <mesh position={[0.27, 0.5, 0.72]} rotation={[0, 0, -0.12]}><boxGeometry args={[0.23, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
-        </>
-      )}
+      <mesh ref={leftBrow} position={[-0.27, 0.49, 0.72]} scale={[0, 0, 0]}><boxGeometry args={[0.25, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
+      <mesh ref={rightBrow} position={[0.27, 0.49, 0.72]} scale={[0, 0, 0]}><boxGeometry args={[0.25, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
       {openMouth ? (
-        <mesh position={[0, activeAction === 'rest' ? -0.02 : 0.03, 0.765]} scale={activeAction === 'rest' ? [1, 1.25, 0.45] : [1, 0.85, 0.45]}>
-          <sphereGeometry args={[activeAction === 'rest' ? 0.13 : 0.095, 14, 10]} /><meshBasicMaterial color="#4c2933" />
+        <mesh position={[0, 0.03, 0.765]} scale={[1, 0.85, 0.45]}>
+          <sphereGeometry args={[0.095, 14, 10]} /><meshBasicMaterial color="#4c2933" />
         </mesh>
       ) : (
         <mesh position={[0, 0.01, 0.76]} rotation={[0, 0, frowning ? Math.PI : 0]} scale={[smiling ? 1.25 : 1, 1, 1]}>
@@ -350,6 +569,7 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
       )}
       <PersonalityMark personality={personality} stage={growthStage} />
       <Wearable itemId={wearableId} />
+      </group>
       {activeAction && (
         <group scale={1.35} position={[0, -0.08, 0.05]}>
           <ActionEffects key={`${activeAction}-${actionNonce}`} action={activeAction} color={effectColor} reducedMotion={reducedMotion} />

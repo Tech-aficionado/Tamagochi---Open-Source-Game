@@ -48,6 +48,15 @@
   .text-button, .icon-button { min-height: 44px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 78%, transparent); cursor: pointer; font-weight: 900; letter-spacing: .08em; }
   .text-button { padding: 10px 14px; font-size: 10px; }
   .icon-button { width: 44px; aspect-ratio: 1; border-radius: 50%; font-size: 18px; }
+  .return-brief { width: min(calc(100% - 44px), 1464px); margin: 20px auto 0; padding: 18px 20px; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 18px; align-items: center; position: relative; z-index: 4; border: 2px solid var(--ink); background: color-mix(in srgb, var(--accent) 24%, var(--paper)); box-shadow: 7px 7px 0 color-mix(in srgb, var(--shell) 55%, var(--ink)); animation: slide-in .35s both; }
+  .return-brief-mark { width: 52px; aspect-ratio: 1; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); font: 22px 'Dela Gothic One'; box-shadow: 3px 3px 0 var(--ink); }
+  .return-brief-copy .eyebrow { margin-bottom: 6px; }
+  .return-brief-copy h2 { margin: 0 0 5px; font-size: clamp(17px, 2vw, 25px); letter-spacing: -.04em; }
+  .return-brief-copy > p:last-child { margin: 0; font-size: 12px; line-height: 1.4; opacity: .72; }
+  .return-brief-actions { display: flex; gap: 8px; }
+  .return-brief-actions button { min-height: 44px; padding: 10px 14px; border: 2px solid var(--ink); background: var(--paper); cursor: pointer; font-size: 8px; font-weight: 950; letter-spacing: .08em; }
+  .return-brief-actions button.primary { background: var(--ink); color: var(--paper); box-shadow: 3px 3px 0 var(--shell); }
+  .return-brief-actions span { margin-right: 5px; color: var(--accent); }
   .eyebrow { margin: 0 0 12px; font-size: 10px; line-height: 1.2; font-weight: 950; letter-spacing: .19em; text-transform: uppercase; }
   h1, h2, p { margin-top: 0; }
   h1, h2 { font-family: 'Dela Gothic One', sans-serif; font-weight: 400; }
@@ -307,6 +316,23 @@
 }
 
 @layer responsive {
+  .scene-play-button {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 3;
+    min-height: 44px;
+    padding: 0 13px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 90%, white);
+    box-shadow: 3px 3px 0 var(--ink);
+    cursor: pointer;
+    font-size: 8px;
+    font-weight: 950;
+    letter-spacing: .08em;
+  }
+
   @media (max-width: 1120px) {
     .game-layout { grid-template-columns: minmax(190px, .55fr) minmax(390px, 1.2fr); }
     .growth-dashboard { grid-template-columns: 1fr; }
@@ -322,6 +348,10 @@
     .topbar-actions { gap: 8px; }
     .save-status { display: none; }
     .text-button { padding: 8px 10px; font-size: 8px; }
+    .return-brief { width: auto; margin: 14px max(17px, env(safe-area-inset-right, 0px)) 0 max(17px, env(safe-area-inset-left, 0px)); padding: 16px; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; box-shadow: 5px 5px 0 color-mix(in srgb, var(--shell) 55%, var(--ink)); }
+    .return-brief-mark { width: 42px; }
+    .return-brief-copy h2 { font-size: 17px; }
+    .return-brief-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; }
     .game-layout { min-height: 0; grid-template-columns: 1fr; padding: 34px max(17px, env(safe-area-inset-right, 0px)) max(60px, env(safe-area-inset-bottom, 0px)) max(17px, env(safe-area-inset-left, 0px)); gap: 30px; }
     .hero-copy { padding-top: 0; display: grid; grid-template-columns: 1fr 1fr; align-items: end; }
     .hero-copy .eyebrow { grid-column: 1 / -1; }
@@ -330,6 +360,7 @@
     .device-stage { padding: 45px 8px 28px; }
     .device { max-width: 470px; box-shadow: inset 11px 8px 0 color-mix(in srgb, white 19%, transparent), inset -12px -10px 0 color-mix(in srgb, var(--shell-dark) 35%, transparent), 8px 11px 0 var(--ink); }
     .screen-caption span { font-size: 8px; }
+    .scene-play-button { right: 8px; bottom: 8px; }
     .care-panel { grid-template-columns: 1fr; padding: 22px; }
     .panel-heading, .mode-switch, .gauges, .bond-line, .reward-strip, .care-actions, .story-button { grid-column: 1; }
     .care-actions { grid-row: auto; }
@@ -350,11 +381,18 @@
     .activity-card > b { grid-column: 2; }
     .activity-art { height: 105px; }
     .reward-counter { width: 100%; }
+    .game-overlay, .tutorial-overlay, .install-overlay, .story-overlay { padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+    .game-dialog, .story-dialog, .tutorial-dialog, .install-dialog { max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow: auto; }
     .game-dialog > header { min-height: 100px; padding: 17px; }
-    .signal-preview { gap: 7px; }
-    .signal-preview span { width: 52px; }
-    .signal-input > div { grid-template-columns: repeat(4, 58px); }
-    .tutorial-dialog { grid-template-columns: 1fr; }
+    .game-dialog header > button, .dialog-close { width: 44px; min-height: 44px; }
+    .star-field, .memory-board { min-height: min(350px, 52dvh); }
+    .signal-preview { width: 100%; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: clamp(4px, 2vw, 7px); padding: 0 12px; }
+    .signal-preview span { width: auto; min-width: 0; font-size: clamp(18px, 7vw, 28px); }
+    .signal-input { width: 100%; padding: 0 12px; }
+    .signal-input > div { grid-template-columns: repeat(4, minmax(44px, 1fr)); gap: clamp(5px, 2vw, 10px); }
+    .signal-input button { min-width: 0; min-height: 44px; }
+    .mode-switch button, .keepsake-action button, .equip-button, .tutorial-skip, .tutorial-nav button, .game-prompt button, .story-choices button { min-height: 44px; }
+    .tutorial-dialog { min-height: 0; grid-template-columns: 1fr; }
     .install-dialog { grid-template-columns: 1fr; }
     .install-art { min-height: 190px; border-right: 0; border-bottom: 3px solid var(--ink); }
     .install-device { width: 92px; height: 112px; font-size: 13px; }
@@ -365,7 +403,7 @@
     .tutorial-device::before { width: 72px; height: 66px; }
     .tutorial-device b { font-size: 14px; }
     .tutorial-copy { padding: 38px 24px 30px; }
-    .tutorial-skip { top: 14px; right: 16px; }
+    .tutorial-skip { top: 8px; right: 10px; }
     .tutorial-footer { align-items: flex-start; flex-direction: column; }
     .theme-section { grid-template-columns: 1fr; padding: 65px 17px; }
     .section-lead { position: static; }
@@ -383,9 +421,10 @@
     .reply-toast { right: 16px; left: 16px; bottom: 16px; }
   }
 
-  @media (max-width: 420px) {
+  @media (max-width: 430px) {
     .brand { font-size: 10px; }
     .brand-mark { width: 36px; }
+    .return-brief-actions { grid-template-columns: 1fr; }
     .hero-copy { grid-template-columns: 1fr; }
     .hero-note { display: none; }
     .device { min-width: 0; border-width: 3px; }
@@ -401,6 +440,13 @@
     .workshop-heading { align-items: flex-start; flex-direction: column; }
     .keepsake-action { grid-template-columns: 1fr; }
     footer { align-items: flex-start; gap: 20px; }
+  }
+
+  @media (hover: none) {
+    .care-actions button:hover { background: var(--paper); transform: none; }
+    .story-choices button:hover { border-color: var(--line); background: transparent; }
+    .theme-card:hover { transform: none; box-shadow: none; }
+    .theme-card.selected:hover { box-shadow: 6px 6px 0 var(--card-color); }
   }
 
   @media (prefers-reduced-motion: reduce) {

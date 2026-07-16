@@ -4,6 +4,7 @@ import {
   isIncidentId,
   isKeepsakeId,
   isPersonalityId,
+  utcDateKey,
 } from './progression'
 import type {
   ActionSignal,
@@ -27,7 +28,13 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 const finite = (value: unknown, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? value : fallback
 const bounded = (value: unknown, fallback: number, minimum: number, maximum: number) => Math.max(minimum, Math.min(maximum, finite(value, fallback)))
 const integer = (value: unknown, fallback: number, minimum: number, maximum: number) => Math.floor(bounded(value, fallback, minimum, maximum))
-const validDate = (value: unknown) => typeof value === 'string' && DATE_PATTERN.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00Z`)) ? value : null
+const validDate = (value: unknown, now: number) => {
+  if (typeof value !== 'string' || !DATE_PATTERN.test(value)) return null
+  const timestamp = Date.parse(`${value}T00:00:00Z`)
+  if (!Number.isFinite(timestamp)) return null
+  const exactDate = new Date(timestamp).toISOString().slice(0, 10)
+  return exactDate === value && value <= utcDateKey(now) ? value : null
+}
 const validTimestamp = (value: unknown, fallback: number, now: number, futureLimit = now) => bounded(value, fallback, 0, futureLimit)
 
 export const freshSnapshot = (now = Date.now()): GameSnapshot => ({
@@ -147,13 +154,13 @@ export const normalizeSnapshot = (value: unknown, now = Date.now()): GameSnapsho
     lastReply: reply,
     sparks: integer(source.sparks, 0, 0, 1_000_000),
     playStreak: integer(source.playStreak, 0, 0, 1_000_000),
-    lastActivityDate: validDate(source.lastActivityDate),
+    lastActivityDate: validDate(source.lastActivityDate, now),
     activityBest: normalizeActivityBest(source.activityBest),
     personalityScores: normalizeScores(source.personalityScores),
     personalityFocus,
     growthPoints,
     growthCooldownUntil: validTimestamp(source.growthCooldownUntil, now, now, now + 5 * 60_000),
-    lastGrowthActivityDate: validDate(source.lastGrowthActivityDate),
+    lastGrowthActivityDate: validDate(source.lastGrowthActivityDate, now),
     activeIncident,
     nextIncidentAt,
     ownedItemIds,

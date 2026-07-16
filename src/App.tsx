@@ -1,8 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties } from 'react'
 import { THEME_BY_ID, THEMES } from './data/themes'
-import { getDominantPersonality, getGrowthStage, INCIDENT_BY_ID } from './game/progression'
-import { STORY_EVENTS, useGameStore } from './game/store'
-import { getMood, type CareAction, type NeedKey } from './game/types'
+import { getDominantPersonality, getGrowthStage, INCIDENT_BY_ID, MINUTE_MS, settleTimedState } from './game/progression'
+import { getStoryBondRequirement, isStoryUnlocked, STORY_EVENTS, useGameStore } from './game/store'
+import { getMood, type CareAction, type GameSnapshot, type IncidentId, type NeedKey } from './game/types'
 import { useNostalgiaMusic } from './audio/chiptune'
 import { ActivityArcade } from './ui/ActivityArcade'
 import { FirstRunTutorial } from './ui/FirstRunTutorial'
@@ -53,6 +53,23 @@ const CARE_ACTIONS = new Set<CareAction>(ACTIONS.map((action) => action.id))
 const TUTORIAL_KEY = 'tamagochi-tutorial-v1'
 const LEGACY_TUTORIAL_KEY = 'poket-worlds-tutorial-v1'
 
+const isTutorialComplete = () => {
+  try {
+    return window.localStorage.getItem(TUTORIAL_KEY) === 'done'
+      || window.localStorage.getItem(LEGACY_TUTORIAL_KEY) === 'done'
+  } catch {
+    return false
+  }
+}
+
+const saveTutorialCompletion = () => {
+  try {
+    window.localStorage.setItem(TUTORIAL_KEY, 'done')
+  } catch {
+    // The tutorial still closes when storage is unavailable.
+  }
+}
+
 const isCareAction = (action: string | null): action is CareAction => action !== null && CARE_ACTIONS.has(action as CareAction)
 
 const NEEDS: readonly { id: NeedKey; label: string; glyph: string }[] = [
@@ -62,6 +79,53 @@ const NEEDS: readonly { id: NeedKey; label: string; glyph: string }[] = [
   { id: 'energy', label: 'Rest', glyph: '☾' },
   { id: 'health', label: 'Health', glyph: '♥' },
 ]
+
+const RETURN_BRIEF_MINUTES = 30
+const NEED_ACTION: Record<NeedKey, CareAction> = {
+  hunger: 'feed',
+  joy: 'play',
+  hygiene: 'wash',
+  energy: 'rest',
+  health: 'cuddle',
+}
+
+interface ReturnBrief {
+  awayMinutes: number
+  changedNeed: NeedKey
+  needDrop: number
+  incidentId: IncidentId | null
+  recommendedAction: CareAction
+}
+
+const createReturnBrief = (snapshot: GameSnapshot, now = Date.now()): ReturnBrief | null => {
+  const awayMinutes = Math.floor(Math.max(0, now - snapshot.lastUpdated) / MINUTE_MS)
+  if (awayMinutes < RETURN_BRIEF_MINUTES) return null
+
+  const settled = settleTimedState(snapshot, now)
+  const changedNeed = NEEDS.reduce((largest, need) => (
+    snapshot.needs[need.id] - settled.needs[need.id] > snapshot.needs[largest.id] - settled.needs[largest.id]
+      ? need
+      : largest
+  ))
+  const lowestNeed = NEEDS.reduce((lowest, need) => (
+    settled.needs[need.id] < settled.needs[lowest.id] ? need : lowest
+  ))
+  const incidentId = settled.activeIncident?.id ?? null
+
+  return {
+    awayMinutes,
+    changedNeed: changedNeed.id,
+    needDrop: Math.max(0, Math.round(snapshot.needs[changedNeed.id] - settled.needs[changedNeed.id])),
+    incidentId,
+    recommendedAction: incidentId ? INCIDENT_BY_ID[incidentId].action : NEED_ACTION[lowestNeed.id],
+  }
+}
+
+const formatAwayTime = (minutes: number) => {
+  if (minutes < 60) return `${minutes} MINUTES`
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} HOURS`
+  return `${Math.floor(minutes / (24 * 60))} DAYS`
+}
 
 const MOOD_COPY = {
   radiant: ['GLOWING', 'Mori is brighter than the morning.'],
@@ -89,24 +153,27 @@ function Gauge({ label, glyph, value }: { label: string; glyph: string; value: n
 export default function App() {
   const game = useGameStore()
   const music = useNostalgiaMusic()
-  const [tutorialOpen, setTutorialOpen] = useState(() => (
-    window.localStorage.getItem(TUTORIAL_KEY) !== 'done'
-    && window.localStorage.getItem(LEGACY_TUTORIAL_KEY) !== 'done'
-  ))
+  const [tutorialOpen, setTutorialOpen] = useState(() => !isTutorialComplete())
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installGuideOpen, setInstallGuideOpen] = useState(false)
   const [isIos] = useState(isIosDevice)
   const [isInstalled, setIsInstalled] = useState(isStandaloneDisplay)
   const [reducedMotion, setReducedMotion] = useState(false)
+  const [returnBrief, setReturnBrief] = useState<ReturnBrief | null>(() => createReturnBrief(game))
   const theme = THEME_BY_ID[game.themeId]
   const mood = getMood(game.needs)
   const moodCopy = MOOD_COPY[mood]
   const story = STORY_EVENTS[game.storyIndex]
+  const storyUnlocked = isStoryUnlocked(game.storyIndex, game.bond)
+  const storyRequirement = getStoryBondRequirement(game.storyIndex)
   const activeAction = isCareAction(game.lastAction) ? game.lastAction : null
   const actionFeedback = activeAction ? ACTION_FEEDBACK[activeAction] : null
   const personality = getDominantPersonality(game.personalityScores, game.personalityFocus)
   const growthStage = getGrowthStage(game.growthPoints)
   const incidentAction = game.activeIncident ? INCIDENT_BY_ID[game.activeIncident.id].action : null
+  const returnAction = returnBrief ? ACTIONS.find((action) => action.id === returnBrief.recommendedAction) : null
+  const returnNeed = returnBrief ? NEEDS.find((need) => need.id === returnBrief.changedNeed) : null
+  const returnIncident = returnBrief?.incidentId ? INCIDENT_BY_ID[returnBrief.incidentId] : null
   const noticeLabel = game.lastAction === 'story'
     ? 'MEMORY SAVED'
     : game.lastAction === 'activity'
@@ -115,8 +182,11 @@ export default function App() {
         ? 'WORKSHOP'
         : 'MORI’S SIGNAL'
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     game.tick()
+  }, [game.tick])
+
+  useEffect(() => {
     const interval = window.setInterval(game.tick, 5_000)
     return () => window.clearInterval(interval)
   }, [game.tick])
@@ -165,12 +235,13 @@ export default function App() {
   }) as CSSProperties, [theme])
 
   const care = (action: CareAction) => {
+    setReturnBrief(null)
     game.care(action)
     music.playSfx(action)
   }
 
   const finishTutorial = () => {
-    window.localStorage.setItem(TUTORIAL_KEY, 'done')
+    saveTutorialCompletion()
     setTutorialOpen(false)
   }
 
@@ -210,6 +281,27 @@ export default function App() {
         </div>
       </header>
 
+      {returnBrief && returnAction && returnNeed && (
+        <section className="return-brief" aria-labelledby="return-brief-title" aria-live="polite">
+          <span className="return-brief-mark" aria-hidden="true">↺</span>
+          <div className="return-brief-copy">
+            <p className="eyebrow">POCKET RETURN SIGNAL · AWAY {formatAwayTime(returnBrief.awayMinutes)}</p>
+            <h2 id="return-brief-title">Welcome back. Mori kept the light on.</h2>
+            <p>
+              {returnIncident
+                ? `${returnIncident.title} is waiting for your help.`
+                : `${returnNeed.label} changed most${returnBrief.needDrop > 0 ? `, down ${returnBrief.needDrop} points` : ''}. Mori has a gentle next step ready.`}
+            </p>
+          </div>
+          <div className="return-brief-actions">
+            <button className="primary" onClick={() => care(returnBrief.recommendedAction)}>
+              <span aria-hidden="true">{returnAction.icon}</span> CARE NOW · {returnAction.label.toUpperCase()}
+            </button>
+            <button onClick={() => setReturnBrief(null)}>NOT NOW</button>
+          </div>
+        </section>
+      )}
+
       <main id="home" className="game-layout">
         <section className="hero-copy" aria-labelledby="pet-title">
           <p className="eyebrow">{growthStage.name.toUpperCase()} · {personality.toUpperCase()} SOUL</p>
@@ -243,6 +335,7 @@ export default function App() {
                     onPlay={() => care('play')}
                   />
                 </Suspense>
+                <button className="scene-play-button" onClick={() => care('play')}>PLAY WITH MORI</button>
                 {activeAction && actionFeedback && (
                   <div key={`action-${game.actionNonce}`} className={`action-feedback action-feedback-${activeAction}`} role="status" aria-live="polite">
                     <i className="action-feedback-burst" aria-hidden="true" />
@@ -297,8 +390,8 @@ export default function App() {
               )
             })}
           </div>
-          <button className="story-button" onClick={game.openStory} disabled={!story}>
-            <span>{story ? 'OPEN NEXT MEMORY' : 'ALL MEMORIES FOUND'}</span><b>→</b>
+          <button className="story-button" onClick={game.openStory} disabled={!storyUnlocked}>
+            <span>{!story ? 'ALL MEMORIES FOUND' : storyUnlocked ? 'OPEN NEXT MEMORY' : `NEXT MEMORY AT ${storyRequirement}% BOND`}</span><b>→</b>
           </button>
         </aside>
       </main>
