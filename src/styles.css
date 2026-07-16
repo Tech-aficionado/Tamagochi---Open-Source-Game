@@ -119,6 +119,61 @@
   .reply-toast span { display: block; color: var(--accent); font-size: 8px; font-weight: 950; letter-spacing: .16em; margin-bottom: 5px; }
   .music-button.playing { background: var(--accent); animation: music-pulse 1.1s steps(2) infinite; }
   .reward-strip { display: flex; justify-content: space-between; gap: 8px; margin: -4px 0 14px; padding: 9px 11px; border: 1px dashed var(--line); background: color-mix(in srgb, var(--accent) 18%, var(--paper)); font-size: 8px; font-weight: 950; letter-spacing: .08em; }
+  .care-actions button.rescue-action { border: 3px solid var(--ink); background: var(--accent); box-shadow: 4px 4px 0 var(--ink); }
+  .care-actions button.rescue-action small { font-weight: 950; opacity: 1; }
+  .growth-section { border-top: 1px solid var(--line); padding: 86px clamp(22px, 5vw, 84px); background: color-mix(in srgb, var(--screen) 42%, var(--paper)); }
+  .growth-heading { max-width: 1420px; margin: 0 auto 36px; display: grid; grid-template-columns: 1fr minmax(280px, 430px); gap: 40px; align-items: end; }
+  .growth-heading h2 { margin: 0; font-size: clamp(36px, 4.6vw, 70px); line-height: .92; letter-spacing: -.065em; }
+  .growth-heading > p { margin: 0; font-size: 14px; line-height: 1.65; }
+  .growth-dashboard { max-width: 1420px; margin: auto; display: grid; grid-template-columns: minmax(320px, .72fr) minmax(0, 1.28fr); gap: 16px; align-items: start; }
+  .identity-card, .incident-card, .workshop-card { border: 2px solid var(--ink); background: var(--paper); box-shadow: 8px 8px 0 color-mix(in srgb, var(--shell) 34%, transparent); }
+  .identity-card { padding: clamp(24px, 3.5vw, 42px); display: grid; grid-template-columns: 58px 1fr; gap: 18px; }
+  .identity-card h3, .incident-card h3, .workshop-card h3 { margin: 0 0 7px; font: clamp(20px, 2.2vw, 30px) 'Dela Gothic One'; letter-spacing: -.045em; }
+  .identity-card p, .incident-card p, .workshop-card p { line-height: 1.5; }
+  .identity-mark { width: 54px; aspect-ratio: 1; display: grid; place-items: center; border: 2px solid; border-radius: 50%; background: var(--accent); font-size: 25px; box-shadow: 4px 4px 0 var(--ink); }
+  .imprint-status, .growth-meter-block, .trait-list, .migration-note { grid-column: 1 / -1; }
+  .imprint-status { display: grid; gap: 3px; padding: 12px 14px; border: 1px dashed var(--line); background: var(--paper-deep); }
+  .imprint-status.ready { background: color-mix(in srgb, var(--accent) 35%, var(--paper)); }
+  .imprint-status b { font-size: 9px; letter-spacing: .11em; }
+  .imprint-status span, .migration-note { font-size: 10px; line-height: 1.45; opacity: .7; }
+  .meter-label { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; font-size: 9px; font-weight: 950; letter-spacing: .08em; }
+  .growth-track, .trait-track { overflow: hidden; border: 1px solid var(--ink); background: var(--paper-deep); }
+  .growth-track { height: 15px; }
+  .growth-track span, .trait-track span { display: block; height: 100%; background: var(--shell); }
+  .trait-list { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .trait-row { display: grid; grid-template-columns: 24px minmax(116px, 1fr) minmax(80px, .8fr); gap: 10px; align-items: center; }
+  .trait-row > span { font-size: 17px; }
+  .trait-row > div:nth-child(2) { display: grid; }
+  .trait-row b { font-size: 11px; }
+  .trait-row small { font-size: 8px; opacity: .6; }
+  .trait-track { height: 9px; }
+  .migration-note { margin: 0; padding-top: 15px; border-top: 1px solid var(--line); }
+  .studio-side { display: grid; gap: 16px; }
+  .incident-card { display: grid; grid-template-columns: 68px 1fr auto; gap: 18px; align-items: center; padding: 22px; background: color-mix(in srgb, var(--accent) 33%, var(--paper)); }
+  .incident-classic { box-shadow: 8px 8px 0 #d85c65; }
+  .incident-glyph { width: 64px; aspect-ratio: 1; display: grid; place-items: center; border: 3px solid; border-radius: 50%; background: var(--paper); font-size: 30px; }
+  .incident-card p { margin-bottom: 7px; font-size: 12px; }
+  .incident-card strong, .incident-card small { display: block; }
+  .incident-card strong { margin-top: 8px; }
+  .incident-card small { margin-top: 4px; font-size: 9px; line-height: 1.4; }
+  .incident-card a { min-height: 44px; display: grid; place-items: center; padding: 0 15px; border: 2px solid var(--ink); background: var(--ink); color: var(--paper); text-decoration: none; font-size: 9px; font-weight: 950; letter-spacing: .1em; }
+  .workshop-card { padding: clamp(22px, 3vw, 34px); }
+  .workshop-heading { display: flex; justify-content: space-between; gap: 20px; align-items: start; }
+  .workshop-heading > strong { padding: 10px 13px; border: 2px solid; background: var(--accent); white-space: nowrap; }
+  .workshop-note { margin: 0 0 22px; max-width: 650px; font-size: 11px; opacity: .68; }
+  .keepsake-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+  .keepsake-card { min-height: 154px; display: grid; grid-template-columns: 48px 1fr; gap: 12px; padding: 15px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 92%, white); }
+  .keepsake-card.equipped { border: 3px solid var(--ink); background: color-mix(in srgb, var(--accent) 25%, var(--paper)); }
+  .keepsake-glyph { width: 44px; aspect-ratio: 1; display: grid; place-items: center; border: 2px solid; border-radius: 50%; background: var(--accent); font-size: 20px; }
+  .keepsake-copy small { font-size: 7px; font-weight: 950; letter-spacing: .1em; }
+  .keepsake-copy h4 { margin: 5px 0; font: 14px 'Dela Gothic One'; }
+  .keepsake-copy p { margin: 0; font-size: 10px; opacity: .65; }
+  .keepsake-action, .equip-button { grid-column: 1 / -1; }
+  .keepsake-action { display: grid; grid-template-columns: 1fr auto; gap: 9px; align-items: center; }
+  .keepsake-action button, .equip-button { min-height: 39px; border: 2px solid var(--ink); background: var(--ink); color: var(--paper); cursor: pointer; font-size: 8px; font-weight: 950; letter-spacing: .09em; }
+  .keepsake-action button:disabled { cursor: not-allowed; opacity: .42; }
+  .keepsake-action span { font-size: 8px; font-weight: 850; }
+  .equip-button[aria-pressed='true'] { background: var(--accent); color: var(--ink); }
   .activity-section { border-top: 1px solid var(--line); padding: 80px clamp(22px, 5vw, 84px); background: var(--ink); color: var(--paper); }
   .activity-heading { max-width: 1420px; margin: 0 auto 35px; display: flex; justify-content: space-between; gap: 30px; align-items: end; }
   .activity-heading h2 { margin: 0; font-size: clamp(34px, 4.2vw, 66px); line-height: .94; letter-spacing: -.06em; }
@@ -254,6 +309,7 @@
 @layer responsive {
   @media (max-width: 1120px) {
     .game-layout { grid-template-columns: minmax(190px, .55fr) minmax(390px, 1.2fr); }
+    .growth-dashboard { grid-template-columns: 1fr; }
     .care-panel { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 0 35px; }
     .panel-heading, .mode-switch, .gauges, .bond-line, .reward-strip { grid-column: 1; }
     .care-actions, .story-button { grid-column: 2; }
@@ -278,6 +334,15 @@
     .panel-heading, .mode-switch, .gauges, .bond-line, .reward-strip, .care-actions, .story-button { grid-column: 1; }
     .care-actions { grid-row: auto; }
     .story-button { grid-row: auto; }
+    .growth-section { padding: 60px 17px; }
+    .growth-heading { grid-template-columns: 1fr; gap: 18px; }
+    .identity-card { grid-template-columns: 48px 1fr; padding: 22px; }
+    .identity-mark { width: 46px; }
+    .incident-card { grid-template-columns: 52px 1fr; padding: 18px; }
+    .incident-glyph { width: 50px; }
+    .incident-card a { grid-column: 1 / -1; }
+    .keepsake-grid { grid-template-columns: 1fr; }
+    .workshop-heading { align-items: center; }
     .activity-section { padding: 60px 17px; }
     .activity-heading { align-items: start; flex-direction: column; }
     .activity-grid { grid-template-columns: 1fr; }
@@ -328,6 +393,13 @@
     .screen-bezel { border-width: 3px; }
     .screen-caption strong { font-size: 12px; }
     .screen-caption span { line-height: 1.1; }
+    .growth-heading h2 { font-size: 35px; }
+    .identity-card { grid-template-columns: 1fr; }
+    .identity-mark { grid-row: auto; }
+    .trait-row { grid-template-columns: 22px 1fr; }
+    .trait-track { grid-column: 2; }
+    .workshop-heading { align-items: flex-start; flex-direction: column; }
+    .keepsake-action { grid-template-columns: 1fr; }
     footer { align-items: flex-start; gap: 20px; }
   }
 

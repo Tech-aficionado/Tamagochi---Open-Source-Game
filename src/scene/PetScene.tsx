@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { ContactShadows, RoundedBox, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
-import type { CareAction, PetMood, ThemeDefinition } from '../game/types'
-
-type ActionSignal = CareAction | 'story' | 'activity' | null
+import type { ActionSignal, CareAction, GrowthStageId, IncidentId, KeepsakeId, PersonalityId, PetMood, ThemeDefinition } from '../game/types'
 
 const CARE_ACTIONS = new Set<CareAction>(['feed', 'play', 'wash', 'rest', 'cuddle', 'explore'])
 const ACTION_DURATION: Record<CareAction, number> = {
@@ -28,6 +26,59 @@ function Heart({ position, scale = 1 }: { position: [number, number, number]; sc
       <mesh position={[0, 0.12, 0]}><coneGeometry args={[0.2, 0.34, 4]} /><meshBasicMaterial color="#ff7897" /></mesh>
     </group>
   )
+}
+
+function PersonalityMark({ personality, stage }: { personality: PersonalityId; stage: GrowthStageId }) {
+  const scale = stage === 'luminary' ? 1.18 : stage === 'bloom' ? 1 : 0.82
+  if (personality === 'gentle') return <Heart position={[0, -0.16, 0.79]} scale={0.42 * scale} />
+  if (personality === 'playful') {
+    return <mesh position={[0, -0.12, 0.82]} rotation={[0.3, 0.2, Math.PI / 4]} scale={scale}><octahedronGeometry args={[0.13]} /><meshStandardMaterial color="#fff0a8" emissive="#ffcf70" emissiveIntensity={0.25} /></mesh>
+  }
+  return (
+    <group position={[0, 0.96, 0]} scale={scale}>
+      <mesh position={[0, 0.14, 0]}><cylinderGeometry args={[0.025, 0.035, 0.28, 8]} /><meshStandardMaterial color="#4c2933" /></mesh>
+      <mesh position={[0, 0.31, 0]}><sphereGeometry args={[0.09, 10, 8]} /><meshStandardMaterial color="#bff7ff" emissive="#8de8ff" emissiveIntensity={0.35} /></mesh>
+    </group>
+  )
+}
+
+function Wearable({ itemId }: { itemId: KeepsakeId | null }) {
+  if (itemId === 'star-ribbon') {
+    return (
+      <group position={[-0.52, 0.66, 0.62]} rotation={[0, 0.15, -0.18]}>
+        <mesh position={[-0.13, 0, 0]} rotation={[0, 0, -Math.PI / 2]}><coneGeometry args={[0.14, 0.28, 4]} /><meshStandardMaterial color="#ff7897" /></mesh>
+        <mesh position={[0.13, 0, 0]} rotation={[0, 0, Math.PI / 2]}><coneGeometry args={[0.14, 0.28, 4]} /><meshStandardMaterial color="#ff7897" /></mesh>
+        <mesh><sphereGeometry args={[0.09, 10, 8]} /><meshStandardMaterial color="#fff0a8" /></mesh>
+      </group>
+    )
+  }
+  if (itemId === 'sprout-crown') {
+    return (
+      <group position={[0, 1.05, 0]}>
+        <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.035, 0.05, 0.3, 8]} /><meshStandardMaterial color="#537c59" /></mesh>
+        <mesh position={[-0.12, 0.24, 0]} rotation={[0, 0, 0.8]} scale={[1.5, 0.65, 1]}><sphereGeometry args={[0.12, 12, 8]} /><meshStandardMaterial color="#79b16f" /></mesh>
+        <mesh position={[0.12, 0.27, 0]} rotation={[0, 0, -0.8]} scale={[1.5, 0.65, 1]}><sphereGeometry args={[0.12, 12, 8]} /><meshStandardMaterial color="#a5d27d" /></mesh>
+      </group>
+    )
+  }
+  if (itemId === 'moon-charm') {
+    return <group position={[0.42, -0.22, 0.78]} scale={0.45}><mesh rotation={[0, 0, 0.45]}><torusGeometry args={[0.22, 0.055, 8, 20, Math.PI * 1.5]} /><meshStandardMaterial color="#fff0a8" emissive="#ffe59a" emissiveIntensity={0.3} /></mesh></group>
+  }
+  return null
+}
+
+function RoomKeepsake({ itemId, accent }: { itemId: KeepsakeId | null; accent: string }) {
+  if (itemId === 'memory-lantern') return <group position={[1.75, -0.55, -0.5]}><mesh><boxGeometry args={[0.42, 0.62, 0.38]} /><meshStandardMaterial color="#fff0a8" emissive="#ffd66f" emissiveIntensity={0.55} /></mesh><mesh position={[0, 0.42, 0]}><torusGeometry args={[0.16, 0.035, 8, 18, Math.PI]} /><meshStandardMaterial color="#4c2933" /></mesh></group>
+  if (itemId === 'tiny-garden') return <group position={[1.7, -0.72, -0.45]}>{[-0.24, 0, 0.24].map((x, index) => <group key={x} position={[x, 0, 0]}><mesh><cylinderGeometry args={[0.025, 0.035, 0.42, 7]} /><meshStandardMaterial color="#537c59" /></mesh><mesh position={[0, 0.25, 0]}><sphereGeometry args={[0.11, 10, 7]} /><meshStandardMaterial color={index === 1 ? accent : '#ff9ca4'} /></mesh></group>)}</group>
+  if (itemId === 'dream-mobile') return <group position={[1.65, 1.05, -0.65]}><mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.38, 0.025, 6, 24]} /><meshStandardMaterial color={accent} /></mesh>{[-0.25, 0, 0.25].map((x, index) => <group key={x} position={[x, -0.3 - index * 0.08, 0]}><mesh><cylinderGeometry args={[0.008, 0.008, 0.42, 5]} /><meshBasicMaterial color="#4c2933" /></mesh><mesh position={[0, -0.26, 0]}><octahedronGeometry args={[0.08]} /><meshStandardMaterial color="#fff0a8" /></mesh></group>)}</group>
+  return null
+}
+
+function IncidentSignal({ incidentId }: { incidentId: IncidentId | null }) {
+  if (incidentId === 'static-cloud') return <group position={[-1.15, 1.25, 0]}>{[-0.22, 0, 0.22].map((x) => <mesh key={x} position={[x, Math.abs(x), 0]}><sphereGeometry args={[0.22, 10, 8]} /><meshStandardMaterial color="#a59bb8" transparent opacity={0.82} /></mesh>)}</group>
+  if (incidentId === 'tangled-sprout') return <mesh position={[0, -0.7, 0.65]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.74, 0.04, 7, 30]} /><meshStandardMaterial color="#83b679" /></mesh>
+  if (incidentId === 'wandering-signal') return <group position={[1.2, 0.75, 0]}><mesh rotation={[0, 0, Math.PI / 4]}><octahedronGeometry args={[0.2]} /><meshStandardMaterial color="#bff7ff" emissive="#76dfff" emissiveIntensity={0.5} /></mesh></group>
+  return null
 }
 
 function ActionEffects({ action, color, reducedMotion }: { action: CareAction; color: string; reducedMotion: boolean }) {
@@ -89,10 +140,13 @@ interface PetProps {
   lastAction: ActionSignal
   actionNonce: number
   reducedMotion: boolean
+  personality: PersonalityId
+  growthStage: GrowthStageId
+  wearableId: KeepsakeId | null
   onPlay: () => void
 }
 
-function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion, onPlay }: PetProps) {
+function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion, personality, growthStage, wearableId, onPlay }: PetProps) {
   const group = useRef<THREE.Group>(null)
   const leftEye = useRef<THREE.Mesh>(null)
   const rightEye = useRef<THREE.Mesh>(null)
@@ -129,9 +183,10 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
     let rotateX = 0
     let rotateY = 0
     let rotateZ = idleTilt
-    let scaleX = 1
-    let scaleY = 1 + (reducedMotion ? 0 : Math.sin(time * 2) * 0.012)
-    let scaleZ = 1
+    const stageScale = growthStage === 'luminary' ? 1.1 : growthStage === 'bloom' ? 1.04 : 0.94
+    let scaleX = stageScale
+    let scaleY = stageScale + (reducedMotion ? 0 : Math.sin(time * 2) * 0.012)
+    let scaleZ = stageScale
 
     if (activeAction === 'feed') {
       rotateX = Math.sin(progress * Math.PI * 6) * 0.28 * envelope * motion
@@ -287,6 +342,14 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
       <mesh position={[0.49, 0.04, 0.65]} scale={[1.4, 0.62, 0.5]}>
         <sphereGeometry args={[0.12, 12, 10]} /><meshBasicMaterial color="#ef7f89" transparent opacity={cheekOpacity} />
       </mesh>
+      {growthStage !== 'seedling' && (
+        <mesh position={[0, 0.17, -0.73]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[growthStage === 'luminary' ? 0.62 : 0.5, 0.035, 8, 28]} />
+          <meshStandardMaterial color="#fff0a8" emissive="#ffe59a" emissiveIntensity={growthStage === 'luminary' ? 0.45 : 0.15} />
+        </mesh>
+      )}
+      <PersonalityMark personality={personality} stage={growthStage} />
+      <Wearable itemId={wearableId} />
       {activeAction && (
         <group scale={1.35} position={[0, -0.08, 0.05]}>
           <ActionEffects key={`${activeAction}-${actionNonce}`} action={activeAction} color={effectColor} reducedMotion={reducedMotion} />
@@ -345,10 +408,15 @@ interface WorldProps {
   lastAction: ActionSignal
   actionNonce: number
   reducedMotion: boolean
+  personality: PersonalityId
+  growthStage: GrowthStageId
+  incidentId: IncidentId | null
+  wearableId: KeepsakeId | null
+  roomItemId: KeepsakeId | null
   onPlay: () => void
 }
 
-function World({ theme, mood, lastAction, actionNonce, reducedMotion, onPlay }: WorldProps) {
+function World({ theme, mood, lastAction, actionNonce, reducedMotion, personality, growthStage, incidentId, wearableId, roomItemId, onPlay }: WorldProps) {
   return (
     <>
       <color attach="background" args={[theme.sky]} />
@@ -364,6 +432,8 @@ function World({ theme, mood, lastAction, actionNonce, reducedMotion, onPlay }: 
         <meshStandardMaterial color={theme.screen} roughness={0.9} />
       </RoundedBox>
       <ThemeDecor theme={theme} />
+      <RoomKeepsake itemId={roomItemId} accent={theme.accent} />
+      <IncidentSignal incidentId={incidentId} />
       <Pet
         mood={mood}
         accent={theme.accent}
@@ -371,6 +441,9 @@ function World({ theme, mood, lastAction, actionNonce, reducedMotion, onPlay }: 
         lastAction={lastAction}
         actionNonce={actionNonce}
         reducedMotion={reducedMotion}
+        personality={personality}
+        growthStage={growthStage}
+        wearableId={wearableId}
         onPlay={onPlay}
       />
       <Sparkles count={reducedMotion ? 10 : 34} scale={[6.4, 3.4, 3]} size={2.2} speed={reducedMotion ? 0 : 0.35} color={theme.particle} />
