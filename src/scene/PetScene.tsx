@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { ContactShadows, Float, RoundedBox, Sparkles } from '@react-three/drei'
+import { ContactShadows, RoundedBox, Sparkles } from '@react-three/drei'
 import * as THREE from 'three'
 import type { CareAction, PetMood, ThemeDefinition } from '../game/types'
 
@@ -8,12 +8,12 @@ type ActionSignal = CareAction | 'story' | 'activity' | null
 
 const CARE_ACTIONS = new Set<CareAction>(['feed', 'play', 'wash', 'rest', 'cuddle', 'explore'])
 const ACTION_DURATION: Record<CareAction, number> = {
-  feed: 1.45,
-  play: 1.6,
-  wash: 1.55,
-  rest: 2.2,
-  cuddle: 1.9,
-  explore: 1.8,
+  feed: 2.2,
+  play: 2.35,
+  wash: 2.3,
+  rest: 2.8,
+  cuddle: 2.65,
+  explore: 2.45,
 }
 
 function isCareAction(action: ActionSignal): action is CareAction {
@@ -40,9 +40,9 @@ function ActionEffects({ action, color, reducedMotion }: { action: CareAction; c
     const duration = ACTION_DURATION[action]
     const progress = Math.min(1, elapsed.current / duration)
     const envelope = Math.sin(progress * Math.PI)
-    group.current.position.y = reducedMotion ? 0 : progress * 0.45
-    group.current.rotation.y = reducedMotion ? 0 : progress * Math.PI * 1.2
-    group.current.scale.setScalar(0.8 + envelope * 0.3)
+    group.current.position.y = reducedMotion ? progress * 0.12 : progress * 0.75
+    group.current.rotation.y = reducedMotion ? 0 : progress * Math.PI * 2
+    group.current.scale.setScalar(1.05 + envelope * 0.65)
   })
 
   const bubblePositions: [number, number, number][] = [[-0.7, 0.2, 0.6], [-0.45, 0.9, 0.4], [0.62, 0.45, 0.6], [0.4, 1.1, 0.2], [0, 1.35, 0.1]]
@@ -121,7 +121,7 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
     const duration = activeAction ? ACTION_DURATION[activeAction] : 1
     const progress = Math.min(1, actionElapsed.current / duration)
     const envelope = activeAction ? Math.sin(progress * Math.PI) : 0
-    const motion = reducedMotion ? 0.18 : 1
+    const motion = reducedMotion ? 0.42 : 1
     const idleY = reducedMotion ? 0 : Math.sin(time * 2.2) * 0.065
     const idleTilt = reducedMotion ? 0 : Math.sin(time * 1.4) * 0.03
     let x = 0
@@ -134,35 +134,40 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
     let scaleZ = 1
 
     if (activeAction === 'feed') {
-      rotateX = Math.sin(progress * Math.PI * 6) * 0.12 * envelope * motion
-      scaleX += envelope * 0.04
-      scaleY -= envelope * 0.05
+      rotateX = Math.sin(progress * Math.PI * 6) * 0.28 * envelope * motion
+      y -= envelope * 0.12 * motion
+      scaleX += envelope * 0.14
+      scaleY -= envelope * 0.16
     } else if (activeAction === 'play') {
-      y += Math.abs(Math.sin(progress * Math.PI * 4)) * 0.38 * envelope * motion
-      rotateY = Math.sin(progress * Math.PI * 2) * 0.72 * envelope * motion
-      scaleX += envelope * 0.08
-      scaleY += envelope * 0.08
+      y += Math.abs(Math.sin(progress * Math.PI * 4)) * 0.82 * envelope * motion
+      rotateY = Math.sin(progress * Math.PI * 2) * 1.35 * envelope * motion
+      rotateZ += Math.sin(progress * Math.PI * 4) * 0.18 * envelope * motion
+      scaleX += envelope * 0.16
+      scaleY += envelope * 0.2
     } else if (activeAction === 'wash') {
-      rotateZ += Math.sin(progress * Math.PI * 12) * 0.2 * envelope * motion
-      x = Math.sin(progress * Math.PI * 12) * 0.08 * envelope * motion
+      rotateZ += Math.sin(progress * Math.PI * 14) * 0.42 * envelope * motion
+      x = Math.sin(progress * Math.PI * 14) * 0.2 * envelope * motion
+      scaleX += envelope * 0.12
+      scaleY -= envelope * 0.08
     } else if (activeAction === 'rest') {
-      y -= envelope * 0.2 * motion
-      rotateZ -= envelope * 0.08 * motion
-      scaleX += envelope * 0.07
-      scaleY -= envelope * 0.1
+      y -= envelope * 0.38 * motion
+      rotateZ -= envelope * 0.18 * motion
+      scaleX += envelope * 0.2
+      scaleY -= envelope * 0.24
     } else if (activeAction === 'cuddle') {
-      x -= envelope * 0.18 * motion
-      rotateZ -= envelope * 0.2 * motion
-      scaleX += envelope * 0.15
-      scaleY -= envelope * 0.12
-      scaleZ += envelope * 0.08
+      x -= envelope * 0.3 * motion
+      y -= envelope * 0.12 * motion
+      rotateZ -= envelope * 0.34 * motion
+      scaleX += envelope * 0.28
+      scaleY -= envelope * 0.22
+      scaleZ += envelope * 0.16
     } else if (activeAction === 'explore') {
-      x = Math.sin(progress * Math.PI * 4) * 0.26 * envelope * motion
-      y += Math.abs(Math.sin(progress * Math.PI * 4)) * 0.14 * envelope * motion
-      rotateY = Math.sin(progress * Math.PI * 3) * 0.32 * envelope * motion
-      rotateZ += Math.sin(progress * Math.PI * 4) * 0.08 * envelope * motion
+      x = Math.sin(progress * Math.PI * 4) * 0.48 * envelope * motion
+      y += Math.abs(Math.sin(progress * Math.PI * 4)) * 0.26 * envelope * motion
+      rotateY = Math.sin(progress * Math.PI * 3) * 0.62 * envelope * motion
+      rotateZ += Math.sin(progress * Math.PI * 4) * 0.15 * envelope * motion
     } else {
-      const bounce = Math.sin((1 - pulse.current) * Math.PI) * pulse.current * 0.12
+      const bounce = Math.sin((1 - pulse.current) * Math.PI) * pulse.current * 0.18
       scaleX += bounce
       scaleY += bounce
       scaleZ += bounce
@@ -189,7 +194,24 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
   const openMouth = activeAction === 'feed' || activeAction === 'rest' || activeAction === 'explore'
   const smiling = activeAction === 'play' || activeAction === 'cuddle' || (!activeAction && (mood === 'happy' || mood === 'radiant'))
   const frowning = !activeAction && (mood === 'grumpy' || mood === 'unwell')
-  const cheekOpacity = activeAction === 'cuddle' ? 0.9 : mood === 'radiant' || activeAction === 'play' ? 0.72 : 0.48
+  const cheekOpacity = activeAction === 'cuddle' ? 0.95 : mood === 'radiant' || activeAction === 'play' ? 0.78 : 0.48
+  const armPoses: Record<CareAction | 'idle', {
+    left: [number, number, number]
+    right: [number, number, number]
+    leftRotation: number
+    rightRotation: number
+  }> = {
+    idle: { left: [-0.68, -0.06, 0.28], right: [0.68, -0.06, 0.28], leftRotation: -0.35, rightRotation: 0.35 },
+    feed: { left: [-0.3, 0.02, 0.7], right: [0.3, 0.02, 0.7], leftRotation: -0.88, rightRotation: 0.88 },
+    play: { left: [-0.67, 0.45, 0.3], right: [0.67, 0.45, 0.3], leftRotation: 1.05, rightRotation: -1.05 },
+    wash: { left: [-0.78, 0.2, 0.32], right: [0.78, 0.2, 0.32], leftRotation: -1.1, rightRotation: 1.1 },
+    rest: { left: [-0.4, -0.24, 0.58], right: [0.4, -0.24, 0.58], leftRotation: -0.72, rightRotation: 0.72 },
+    cuddle: { left: [-0.24, -0.02, 0.75], right: [0.24, -0.02, 0.78], leftRotation: -1.15, rightRotation: 1.15 },
+    explore: { left: [-0.65, -0.04, 0.3], right: [0.72, 0.32, 0.42], leftRotation: -0.28, rightRotation: -1.12 },
+  }
+  const armPose = armPoses[activeAction ?? 'idle']
+  const earsRaised = activeAction === 'play' || activeAction === 'explore'
+  const earsDrooped = activeAction === 'rest' || activeAction === 'cuddle'
 
   return (
     <group
@@ -199,17 +221,25 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
       onPointerEnter={() => { document.body.style.cursor = 'pointer' }}
       onPointerLeave={() => { document.body.style.cursor = 'default' }}
     >
-      <mesh castShadow position={[-0.48, 0.76, -0.02]} rotation={[0, 0, -0.35]}>
+      <mesh castShadow position={[-0.48, 0.76, -0.02]} rotation={[0, 0, earsRaised ? -0.08 : earsDrooped ? -0.72 : -0.35]} scale={earsRaised ? 1.12 : 1}>
         <coneGeometry args={[0.28, 0.7, 5]} />
         <meshStandardMaterial color={accent} roughness={0.72} />
       </mesh>
-      <mesh castShadow position={[0.48, 0.76, -0.02]} rotation={[0, 0, 0.35]}>
+      <mesh castShadow position={[0.48, 0.76, -0.02]} rotation={[0, 0, earsRaised ? 0.08 : earsDrooped ? 0.72 : 0.35]} scale={earsRaised ? 1.12 : 1}>
         <coneGeometry args={[0.28, 0.7, 5]} />
         <meshStandardMaterial color={accent} roughness={0.72} />
       </mesh>
       <mesh castShadow position={[0, 0.18, 0]} scale={[1, 1.08, 0.85]}>
         <sphereGeometry args={[0.82, 32, 24]} />
         <meshStandardMaterial color={accent} roughness={0.67} />
+      </mesh>
+      <mesh castShadow position={armPose.left} rotation={[0, 0, armPose.leftRotation]} scale={[0.62, 1.18, 0.72]}>
+        <sphereGeometry args={[0.22, 18, 14]} />
+        <meshStandardMaterial color={accent} roughness={0.68} />
+      </mesh>
+      <mesh castShadow position={armPose.right} rotation={[0, 0, armPose.rightRotation]} scale={[0.62, 1.18, 0.72]}>
+        <sphereGeometry args={[0.22, 18, 14]} />
+        <meshStandardMaterial color={accent} roughness={0.68} />
       </mesh>
       <mesh castShadow position={[-0.48, -0.62, 0.08]} scale={[1.2, 0.65, 1.2]}>
         <sphereGeometry args={[0.28, 20, 16]} /><meshStandardMaterial color={accent} roughness={0.7} />
@@ -236,6 +266,12 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
           <mesh position={[0.27, 0.49, 0.72]} rotation={[0, 0, 0.22]}><boxGeometry args={[0.25, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
         </>
       )}
+      {(activeAction === 'play' || activeAction === 'explore') && (
+        <>
+          <mesh position={[-0.27, 0.5, 0.72]} rotation={[0, 0, 0.12]}><boxGeometry args={[0.23, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
+          <mesh position={[0.27, 0.5, 0.72]} rotation={[0, 0, -0.12]}><boxGeometry args={[0.23, 0.035, 0.035]} /><meshBasicMaterial color="#4c2933" /></mesh>
+        </>
+      )}
       {openMouth ? (
         <mesh position={[0, activeAction === 'rest' ? -0.02 : 0.03, 0.765]} scale={activeAction === 'rest' ? [1, 1.25, 0.45] : [1, 0.85, 0.45]}>
           <sphereGeometry args={[activeAction === 'rest' ? 0.13 : 0.095, 14, 10]} /><meshBasicMaterial color="#4c2933" />
@@ -251,7 +287,11 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
       <mesh position={[0.49, 0.04, 0.65]} scale={[1.4, 0.62, 0.5]}>
         <sphereGeometry args={[0.12, 12, 10]} /><meshBasicMaterial color="#ef7f89" transparent opacity={cheekOpacity} />
       </mesh>
-      {activeAction && <ActionEffects key={`${activeAction}-${actionNonce}`} action={activeAction} color={effectColor} reducedMotion={reducedMotion} />}
+      {activeAction && (
+        <group scale={1.35} position={[0, -0.08, 0.05]}>
+          <ActionEffects key={`${activeAction}-${actionNonce}`} action={activeAction} color={effectColor} reducedMotion={reducedMotion} />
+        </group>
+      )}
     </group>
   )
 }
@@ -324,17 +364,15 @@ function World({ theme, mood, lastAction, actionNonce, reducedMotion, onPlay }: 
         <meshStandardMaterial color={theme.screen} roughness={0.9} />
       </RoundedBox>
       <ThemeDecor theme={theme} />
-      <Float speed={reducedMotion ? 0 : 1.5} rotationIntensity={0.08} floatIntensity={0.12}>
-        <Pet
-          mood={mood}
-          accent={theme.accent}
-          effectColor={theme.particle}
-          lastAction={lastAction}
-          actionNonce={actionNonce}
-          reducedMotion={reducedMotion}
-          onPlay={onPlay}
-        />
-      </Float>
+      <Pet
+        mood={mood}
+        accent={theme.accent}
+        effectColor={theme.particle}
+        lastAction={lastAction}
+        actionNonce={actionNonce}
+        reducedMotion={reducedMotion}
+        onPlay={onPlay}
+      />
       <Sparkles count={reducedMotion ? 10 : 34} scale={[6.4, 3.4, 3]} size={2.2} speed={reducedMotion ? 0 : 0.35} color={theme.particle} />
       <ContactShadows position={[0, -1.03, 0.4]} opacity={0.32} scale={5} blur={2.4} far={3.5} />
     </>

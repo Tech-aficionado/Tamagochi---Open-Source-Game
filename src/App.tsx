@@ -22,6 +22,21 @@ const ACTIONS: readonly { id: CareAction; icon: string; label: string; hint: str
   { id: 'explore', icon: '↗', label: 'Explore', hint: '+ discovery' },
 ]
 
+const ACTION_FEEDBACK: Record<CareAction, { title: string; detail: string }> = {
+  feed: { title: 'SNACK TIME!', detail: 'Munch · munch · happy crunch' },
+  play: { title: 'ZOOMIES!', detail: 'Bounce · spin · sparkle' },
+  wash: { title: 'BUBBLE BATH!', detail: 'Shake · scrub · shine' },
+  rest: { title: 'DREAM MODE', detail: 'Curl up · breathe · restore' },
+  cuddle: { title: 'BIG CUDDLE!', detail: 'Hold close · feel safe' },
+  explore: { title: 'ADVENTURE!', detail: 'Step out · look around' },
+}
+
+const CARE_ACTIONS = new Set<CareAction>(ACTIONS.map((action) => action.id))
+const TUTORIAL_KEY = 'tamagochi-tutorial-v1'
+const LEGACY_TUTORIAL_KEY = 'poket-worlds-tutorial-v1'
+
+const isCareAction = (action: string | null): action is CareAction => action !== null && CARE_ACTIONS.has(action as CareAction)
+
 const NEEDS: readonly { id: NeedKey; label: string; glyph: string }[] = [
   { id: 'hunger', label: 'Full', glyph: '●' },
   { id: 'joy', label: 'Joy', glyph: '✦' },
@@ -56,13 +71,18 @@ function Gauge({ label, glyph, value }: { label: string; glyph: string; value: n
 export default function App() {
   const game = useGameStore()
   const music = useNostalgiaMusic()
-  const [tutorialOpen, setTutorialOpen] = useState(() => window.localStorage.getItem('poket-worlds-tutorial-v1') !== 'done')
+  const [tutorialOpen, setTutorialOpen] = useState(() => (
+    window.localStorage.getItem(TUTORIAL_KEY) !== 'done'
+    && window.localStorage.getItem(LEGACY_TUTORIAL_KEY) !== 'done'
+  ))
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [reducedMotion, setReducedMotion] = useState(false)
   const theme = THEME_BY_ID[game.themeId]
   const mood = getMood(game.needs)
   const moodCopy = MOOD_COPY[mood]
   const story = STORY_EVENTS[game.storyIndex]
+  const activeAction = isCareAction(game.lastAction) ? game.lastAction : null
+  const actionFeedback = activeAction ? ACTION_FEEDBACK[activeAction] : null
 
   useEffect(() => {
     game.tick()
@@ -102,7 +122,7 @@ export default function App() {
   }
 
   const finishTutorial = () => {
-    window.localStorage.setItem('poket-worlds-tutorial-v1', 'done')
+    window.localStorage.setItem(TUTORIAL_KEY, 'done')
     setTutorialOpen(false)
   }
 
@@ -120,9 +140,9 @@ export default function App() {
   return (
     <div className="app" style={themeStyle}>
       <header className="topbar">
-        <a className="brand" href="#home" aria-label="Poket Worlds home">
-          <span className="brand-mark" aria-hidden="true">PW</span>
-          <span>POKET<br />WORLDS</span>
+        <a className="brand" href="#home" aria-label="Tamagochi home">
+          <span className="brand-mark" aria-hidden="true">T</span>
+          <span>TAMA<br />GOCHI</span>
         </a>
         <div className="topbar-actions">
           <span className="save-status"><i /> LOCAL SAVE</span>
@@ -155,6 +175,14 @@ export default function App() {
                 <Suspense fallback={<div className="scene-loading">WAKING UP…</div>}>
                   <PetScene theme={theme} mood={mood} lastAction={game.lastAction} actionNonce={game.actionNonce} reducedMotion={reducedMotion} onPlay={() => care('play')} />
                 </Suspense>
+                {activeAction && actionFeedback && (
+                  <div key={`action-${game.actionNonce}`} className={`action-feedback action-feedback-${activeAction}`} role="status" aria-live="polite">
+                    <i className="action-feedback-burst" aria-hidden="true" />
+                    <span aria-hidden="true">{ACTIONS.find((action) => action.id === activeAction)?.icon}</span>
+                    <strong>{actionFeedback.title}</strong>
+                    <small>{actionFeedback.detail}</small>
+                  </div>
+                )}
                 <div className="scanlines" aria-hidden="true" />
               </div>
               <div className="screen-caption">
@@ -229,7 +257,7 @@ export default function App() {
       </section>
 
       <footer>
-        <span>POKET WORLDS · ORIGINAL VIRTUAL PET</span>
+        <span>TAMAGOCHI · ORIGINAL VIRTUAL PET</span>
         <button onClick={() => { if (window.confirm('Start again with a fresh egg?')) game.reset() }}>RESET SAVE</button>
       </footer>
 

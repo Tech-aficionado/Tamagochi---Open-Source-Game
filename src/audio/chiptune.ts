@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CareAction } from '../game/types'
 
-// Original pocket-console melody composed for Poket Worlds.
+// Original pocket-console melody composed for Tamagochi.
 const MELODY = [
   523.25, 659.25, 783.99, 0, 659.25, 587.33, 523.25, 392,
   440, 523.25, 659.25, 0, 783.99, 659.25, 587.33, 440,

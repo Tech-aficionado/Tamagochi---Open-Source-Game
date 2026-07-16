@@ -157,7 +157,7 @@ export const useGameStore = create<GameState>()(
           bond: clampNeed(state.bond + 2 + score / 10),
           lastAction: 'activity' as const,
           actionNonce: state.actionNonce + 1,
-          lastReply: `${state.petName} found ${reward} Sparks in the Poket Arcade!`,
+          lastReply: `${state.petName} found ${reward} Sparks in the Tamagochi Arcade!`,
         }
       }),
       chooseStory: (choiceIndex) => set((state) => {
