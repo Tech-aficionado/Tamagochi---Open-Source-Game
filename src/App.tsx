@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { THEME_BY_ID, THEMES } from './data/themes'
+import { getDominantPersonality, getGrowthStage, INCIDENT_BY_ID } from './game/progression'
 import { STORY_EVENTS, useGameStore } from './game/store'
 import { getMood, type CareAction, type NeedKey } from './game/types'
 import { useNostalgiaMusic } from './audio/chiptune'
 import { ActivityArcade } from './ui/ActivityArcade'
 import { FirstRunTutorial } from './ui/FirstRunTutorial'
+import { GrowthStudio } from './ui/GrowthStudio'
 
 const PetScene = lazy(() => import('./scene/PetScene').then((module) => ({ default: module.PetScene })))
 
@@ -102,6 +104,16 @@ export default function App() {
   const story = STORY_EVENTS[game.storyIndex]
   const activeAction = isCareAction(game.lastAction) ? game.lastAction : null
   const actionFeedback = activeAction ? ACTION_FEEDBACK[activeAction] : null
+  const personality = getDominantPersonality(game.personalityScores, game.personalityFocus)
+  const growthStage = getGrowthStage(game.growthPoints)
+  const incidentAction = game.activeIncident ? INCIDENT_BY_ID[game.activeIncident.id].action : null
+  const noticeLabel = game.lastAction === 'story'
+    ? 'MEMORY SAVED'
+    : game.lastAction === 'activity'
+      ? 'ARCADE SIGNAL'
+      : game.lastAction === 'workshop'
+        ? 'WORKSHOP'
+        : 'MORI’S SIGNAL'
 
   useEffect(() => {
     game.tick()
@@ -200,9 +212,9 @@ export default function App() {
 
       <main id="home" className="game-layout">
         <section className="hero-copy" aria-labelledby="pet-title">
-          <p className="eyebrow">POCKET PAL · GENERATION 01</p>
+          <p className="eyebrow">{growthStage.name.toUpperCase()} · {personality.toUpperCase()} SOUL</p>
           <h1 id="pet-title">Meet<br /><em>{game.petName}.</em></h1>
-          <p className="hero-note">A tiny life in a world that fits in your hand.</p>
+          <p className="hero-note">A tiny life that remembers how you care.</p>
         </section>
 
         <section className="device-stage" aria-label={`${game.petName}'s ${theme.name} device`}>
@@ -217,7 +229,19 @@ export default function App() {
               </div>
               <div className="scene-wrap">
                 <Suspense fallback={<div className="scene-loading">WAKING UP…</div>}>
-                  <PetScene theme={theme} mood={mood} lastAction={game.lastAction} actionNonce={game.actionNonce} reducedMotion={reducedMotion} onPlay={() => care('play')} />
+                  <PetScene
+                    theme={theme}
+                    mood={mood}
+                    lastAction={game.lastAction}
+                    actionNonce={game.actionNonce}
+                    reducedMotion={reducedMotion}
+                    personality={personality}
+                    growthStage={growthStage.id}
+                    incidentId={game.activeIncident?.id ?? null}
+                    wearableId={game.equippedWearable}
+                    roomItemId={game.equippedRoomItem}
+                    onPlay={() => care('play')}
+                  />
                 </Suspense>
                 {activeAction && actionFeedback && (
                   <div key={`action-${game.actionNonce}`} className={`action-feedback action-feedback-${activeAction}`} role="status" aria-live="polite">
@@ -242,14 +266,14 @@ export default function App() {
           </div>
         </section>
 
-        <aside className="care-panel" aria-label="Pet care panel">
+        <aside id="care-panel" className="care-panel" aria-label="Pet care panel">
           <div className="panel-heading">
             <div><p className="eyebrow">TODAY'S SIGNAL</p><h2>{moodCopy[0]}</h2></div>
             <span className={`mood-orb mood-${mood}`} aria-hidden="true" />
           </div>
           <div className="mode-switch" aria-label="Care difficulty">
-            <button className={game.mode === 'cozy' ? 'active' : ''} onClick={() => game.setMode('cozy')}>COZY</button>
-            <button className={game.mode === 'classic' ? 'active' : ''} onClick={() => game.setMode('classic')}>CLASSIC</button>
+            <button aria-pressed={game.mode === 'cozy'} className={game.mode === 'cozy' ? 'active' : ''} onClick={() => game.setMode('cozy')}>COZY</button>
+            <button aria-pressed={game.mode === 'classic'} className={game.mode === 'classic' ? 'active' : ''} onClick={() => game.setMode('classic')}>CLASSIC</button>
           </div>
           <div className="gauges">
             {NEEDS.map((need) => <Gauge key={need.id} {...need} value={game.needs[need.id]} />)}
@@ -259,11 +283,19 @@ export default function App() {
             <span>✦ {game.sparks} SPARKS</span><span>↻ {game.playStreak} DAY</span>
           </div>
           <div className="care-actions">
-            {ACTIONS.map((action) => (
-              <button key={action.id} onClick={() => care(action.id)}>
-                <span aria-hidden="true">{action.icon}</span><b>{action.label}</b><small>{action.hint}</small>
-              </button>
-            ))}
+            {ACTIONS.map((action) => {
+              const rescuesMori = incidentAction === action.id
+              return (
+                <button
+                  key={action.id}
+                  className={rescuesMori ? 'rescue-action' : ''}
+                  aria-label={`${action.label}${rescuesMori ? ', resolves Mori’s active incident' : ''}`}
+                  onClick={() => care(action.id)}
+                >
+                  <span aria-hidden="true">{action.icon}</span><b>{action.label}</b><small>{rescuesMori ? 'RESCUE · TRY THIS' : action.hint}</small>
+                </button>
+              )
+            })}
           </div>
           <button className="story-button" onClick={game.openStory} disabled={!story}>
             <span>{story ? 'OPEN NEXT MEMORY' : 'ALL MEMORIES FOUND'}</span><b>→</b>
@@ -272,9 +304,10 @@ export default function App() {
       </main>
 
       {game.lastReply && !game.storyOpen && (
-        <div className="reply-toast" role="status"><span>MEMORY SAVED</span>{game.lastReply}</div>
+        <div className="reply-toast" role="status"><span>{noticeLabel}</span>{game.lastReply}</div>
       )}
 
+      <GrowthStudio />
       <ActivityArcade />
 
       <section className="theme-section" aria-labelledby="theme-title">
