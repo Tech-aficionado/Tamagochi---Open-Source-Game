@@ -13,6 +13,22 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+interface NavigatorWithStandalone extends Navigator {
+  standalone?: boolean
+}
+
+const isIosDevice = () => {
+  const navigatorWithStandalone = navigator as NavigatorWithStandalone
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    || navigatorWithStandalone.standalone === true
+}
+
+const isStandaloneDisplay = () => (
+  window.matchMedia('(display-mode: standalone)').matches
+  || (navigator as NavigatorWithStandalone).standalone === true
+)
+
 const ACTIONS: readonly { id: CareAction; icon: string; label: string; hint: string }[] = [
   { id: 'feed', icon: '●', label: 'Feed', hint: '+ hunger' },
   { id: 'play', icon: '✦', label: 'Play', hint: '+ joy' },
@@ -76,6 +92,9 @@ export default function App() {
     && window.localStorage.getItem(LEGACY_TUTORIAL_KEY) !== 'done'
   ))
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installGuideOpen, setInstallGuideOpen] = useState(false)
+  const [isIos] = useState(isIosDevice)
+  const [isInstalled, setIsInstalled] = useState(isStandaloneDisplay)
   const [reducedMotion, setReducedMotion] = useState(false)
   const theme = THEME_BY_ID[game.themeId]
   const mood = getMood(game.needs)
@@ -99,12 +118,29 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    const displayMode = window.matchMedia('(display-mode: standalone)')
+    const updateInstalledState = () => setIsInstalled(isStandaloneDisplay())
     const capture = (event: Event) => {
       event.preventDefault()
       setInstallPrompt(event as BeforeInstallPromptEvent)
+      setIsInstalled(false)
     }
+    const installed = () => {
+      setInstallPrompt(null)
+      setInstallGuideOpen(false)
+      setIsInstalled(true)
+    }
+
     window.addEventListener('beforeinstallprompt', capture)
-    return () => window.removeEventListener('beforeinstallprompt', capture)
+    window.addEventListener('appinstalled', installed)
+    displayMode.addEventListener('change', updateInstalledState)
+    updateInstalledState()
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', capture)
+      window.removeEventListener('appinstalled', installed)
+      displayMode.removeEventListener('change', updateInstalledState)
+    }
   }, [])
 
   const themeStyle = useMemo(() => ({
@@ -127,10 +163,16 @@ export default function App() {
   }
 
   const install = async () => {
-    if (!installPrompt) return
-    await installPrompt.prompt()
-    await installPrompt.userChoice
-    setInstallPrompt(null)
+    if (isIos) {
+      setInstallGuideOpen(true)
+      return
+    }
+
+    if (installPrompt) {
+      await installPrompt.prompt()
+      await installPrompt.userChoice
+      setInstallPrompt(null)
+    }
   }
 
   const ageLabel = game.ageMinutes < 60
@@ -146,7 +188,9 @@ export default function App() {
         </a>
         <div className="topbar-actions">
           <span className="save-status"><i /> LOCAL SAVE</span>
-          {installPrompt && <button className="text-button" onClick={install}>INSTALL APP</button>}
+          {!isInstalled && (installPrompt || isIos) && (
+            <button className="text-button install-button" onClick={() => void install()}>INSTALL APP</button>
+          )}
           <button className="icon-button" onClick={() => setTutorialOpen(true)} aria-label="Open tutorial">?</button>
           <button className={`icon-button music-button ${music.isPlaying ? 'playing' : ''}`} onClick={() => void music.toggle()} aria-label={music.isPlaying ? 'Stop nostalgic music' : 'Play nostalgic music'} title={music.isPlaying ? 'Music on' : 'Play music'}>
             {music.isPlaying ? '♫' : '♪'}
@@ -276,6 +320,29 @@ export default function App() {
                 ))}
               </div>
               <small>Your choices shape Mori's future evolution.</small>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {installGuideOpen && (
+        <div className="install-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setInstallGuideOpen(false) }}>
+          <section className="install-dialog" role="dialog" aria-modal="true" aria-labelledby="install-title">
+            <button className="dialog-close" onClick={() => setInstallGuideOpen(false)} aria-label="Close installation guide">×</button>
+            <div className="install-art" aria-hidden="true">
+              <span className="install-device">◉‿◉</span>
+              <i>↑</i>
+            </div>
+            <div className="install-copy">
+              <p className="eyebrow">ADD TO YOUR HOME SCREEN</p>
+              <h2 id="install-title">Keep Mori<br /><em>in your pocket.</em></h2>
+              <ol className="install-steps">
+                <li><b>1</b><span><strong>Tap Share</strong> in Safari's toolbar.</span></li>
+                <li><b>2</b><span><strong>Choose Add to Home Screen</strong> from the share menu.</span></li>
+                <li><b>3</b><span><strong>Tap Add</strong> to install Tamagochi.</span></li>
+              </ol>
+              <p className="install-note">Once installed, Tamagochi opens full-screen and keeps Mori available offline.</p>
+              <button className="install-done" onClick={() => setInstallGuideOpen(false)}>GOT IT</button>
             </div>
           </section>
         </div>
