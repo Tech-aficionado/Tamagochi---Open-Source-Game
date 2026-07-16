@@ -120,6 +120,7 @@ function IncidentSignal({ incidentId }: { incidentId: IncidentId | null }) {
 
 function ActionEffects({ action, color, reducedMotion }: { action: CareAction; color: string; reducedMotion: boolean }) {
   const group = useRef<THREE.Group>(null)
+  const effectItems = useRef<Array<THREE.Group | null>>([])
   const elapsed = useRef(0)
 
   useFrame((_, delta) => {
@@ -166,6 +167,27 @@ function ActionEffects({ action, color, reducedMotion }: { action: CareAction; c
     group.current.rotation.y = THREE.MathUtils.damp(group.current.rotation.y, rotateY, 12, delta)
     group.current.rotation.z = THREE.MathUtils.damp(group.current.rotation.z, rotateZ, 12, delta)
     group.current.scale.setScalar(THREE.MathUtils.damp(group.current.scale.x, scale, 12, delta))
+
+    for (let index = 0; index < effectItems.current.length; index += 1) {
+      const item = effectItems.current[index]
+      if (!item) continue
+      const stagger = smoothRange(progress, spec.anticipateEnd + index * 0.025, Math.min(spec.holdEnd, spec.contactEnd + 0.24 + index * 0.035))
+      const pulse = Math.sin(stagger * Math.PI)
+      const itemTravel = reducedMotion ? 0 : 1
+      const lift = action === 'wash'
+        ? stagger * (0.18 + index * 0.025)
+        : action === 'cuddle'
+          ? pulse * (0.1 + index * 0.02)
+          : pulse * (0.08 + index * 0.018)
+      const itemTurn = action === 'play' || action === 'explore' ? stagger * (0.45 + index * 0.12) : pulse * 0.12
+      const itemScale = reducedMotion
+        ? 0.94 + pulse * 0.08
+        : 0.72 + stagger * 0.38 + pulse * 0.16 - recovery * 0.16
+      item.position.y = THREE.MathUtils.damp(item.position.y, lift * itemTravel, 14, delta)
+      item.rotation.y = THREE.MathUtils.damp(item.rotation.y, itemTurn * itemTravel, 14, delta)
+      item.rotation.z = THREE.MathUtils.damp(item.rotation.z, (index % 2 ? -1 : 1) * itemTurn * 0.45 * itemTravel, 14, delta)
+      item.scale.setScalar(THREE.MathUtils.damp(item.scale.x, itemScale, 14, delta))
+    }
   })
 
   const bubblePositions: [number, number, number][] = [[-0.7, 0.2, 0.6], [-0.45, 0.9, 0.4], [0.62, 0.45, 0.6], [0.4, 1.1, 0.2], [0, 1.35, 0.1]]
@@ -175,29 +197,51 @@ function ActionEffects({ action, color, reducedMotion }: { action: CareAction; c
     <group ref={group} position={[0, 0, 0.5]}>
       {action === 'feed' && (
         <group>
-          <mesh position={[0.52, 0.14, 0.7]}><sphereGeometry args={[0.18, 14, 10]} /><meshStandardMaterial color="#e68a45" /></mesh>
-          {[-0.24, 0, 0.25].map((x, index) => <mesh key={x} position={[x, 0.46 + index * 0.1, 0.82]}><sphereGeometry args={[0.045, 8, 6]} /><meshBasicMaterial color="#fff1a8" /></mesh>)}
+          <group ref={(node) => { effectItems.current[0] = node }}>
+            <mesh position={[0.52, 0.14, 0.7]}><sphereGeometry args={[0.18, 14, 10]} /><meshStandardMaterial color="#e68a45" /></mesh>
+          </group>
+          {[-0.24, 0, 0.25].map((x, index) => (
+            <group key={x} position={[x, 0.46 + index * 0.1, 0.82]}>
+              <group ref={(node) => { effectItems.current[index + 1] = node }}><mesh><sphereGeometry args={[0.045, 8, 6]} /><meshBasicMaterial color="#fff1a8" /></mesh></group>
+            </group>
+          ))}
         </group>
       )}
       {action === 'play' && starPositions.map((position, index) => (
-        <mesh key={index} position={position} rotation={[0.4, 0.3, index]}><octahedronGeometry args={[0.16]} /><meshStandardMaterial color={index % 2 ? color : '#fff4a8'} emissive={color} emissiveIntensity={0.3} /></mesh>
+        <group key={index} position={position}>
+          <group ref={(node) => { effectItems.current[index] = node }}>
+            <mesh rotation={[0.4, 0.3, index]}><octahedronGeometry args={[0.16]} /><meshStandardMaterial color={index % 2 ? color : '#fff4a8'} emissive={color} emissiveIntensity={0.3} /></mesh>
+          </group>
+        </group>
       ))}
       {action === 'wash' && bubblePositions.map((position, index) => (
-        <mesh key={index} position={position}><sphereGeometry args={[0.11 + index * 0.018, 14, 10]} /><meshStandardMaterial color="#bff7ff" transparent opacity={0.58} roughness={0.18} /></mesh>
+        <group key={index} position={position}>
+          <group ref={(node) => { effectItems.current[index] = node }}>
+            <mesh><sphereGeometry args={[0.11 + index * 0.018, 14, 10]} /><meshStandardMaterial color="#bff7ff" transparent opacity={0.58} roughness={0.18} /></mesh>
+          </group>
+        </group>
       ))}
       {action === 'rest' && (
         <group position={[0.75, 1.25, 0.2]}>
-          <mesh rotation={[0, 0, 0.5]}><torusGeometry args={[0.3, 0.065, 10, 24, Math.PI * 1.45]} /><meshBasicMaterial color="#fff0a8" /></mesh>
-          <mesh position={[-0.55, 0.15, 0]}><sphereGeometry args={[0.055, 8, 6]} /><meshBasicMaterial color="#fff" /></mesh>
+          <group ref={(node) => { effectItems.current[0] = node }}>
+            <mesh rotation={[0, 0, 0.5]}><torusGeometry args={[0.3, 0.065, 10, 24, Math.PI * 1.45]} /><meshBasicMaterial color="#fff0a8" /></mesh>
+            <mesh position={[-0.55, 0.15, 0]}><sphereGeometry args={[0.055, 8, 6]} /><meshBasicMaterial color="#fff" /></mesh>
+          </group>
         </group>
       )}
       {action === 'cuddle' && (
-        <group><Heart position={[-0.38, 0.78, 0.4]} scale={0.82} /><Heart position={[0.38, 0.93, 0.3]} scale={0.7} /><Heart position={[0, 1.38, 0.1]} scale={0.58} /></group>
+        <group>
+          <group position={[-0.38, 0.78, 0.4]}><group ref={(node) => { effectItems.current[0] = node }}><Heart position={[0, 0, 0]} scale={0.82} /></group></group>
+          <group position={[0.38, 0.93, 0.3]}><group ref={(node) => { effectItems.current[1] = node }}><Heart position={[0, 0, 0]} scale={0.7} /></group></group>
+          <group position={[0, 1.38, 0.1]}><group ref={(node) => { effectItems.current[2] = node }}><Heart position={[0, 0, 0]} scale={0.58} /></group></group>
+        </group>
       )}
       {action === 'explore' && (
         <group position={[0, 0.85, 0.25]}>
-          <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.75, 0.035, 8, 38]} /><meshBasicMaterial color={color} /></mesh>
-          {[0, 1, 2, 3].map((index) => <mesh key={index} position={[Math.cos(index * Math.PI / 2) * 0.75, Math.sin(index * Math.PI / 2) * 0.75, 0]} rotation={[0, 0, -index * Math.PI / 2]}><coneGeometry args={[0.1, 0.28, 4]} /><meshBasicMaterial color="#fff4a8" /></mesh>)}
+          <group ref={(node) => { effectItems.current[0] = node }}>
+            <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.75, 0.035, 8, 38]} /><meshBasicMaterial color={color} /></mesh>
+            {[0, 1, 2, 3].map((index) => <mesh key={index} position={[Math.cos(index * Math.PI / 2) * 0.75, Math.sin(index * Math.PI / 2) * 0.75, 0]} rotation={[0, 0, -index * Math.PI / 2]}><coneGeometry args={[0.1, 0.28, 4]} /><meshBasicMaterial color="#fff4a8" /></mesh>)}
+          </group>
         </group>
       )}
     </group>
@@ -228,6 +272,8 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
   const rightEye = useRef<THREE.Mesh>(null)
   const leftBrow = useRef<THREE.Mesh>(null)
   const rightBrow = useRef<THREE.Mesh>(null)
+  const leftFoot = useRef<THREE.Mesh>(null)
+  const rightFoot = useRef<THREE.Mesh>(null)
   const actionElapsed = useRef(10)
   const pulse = useRef(0)
   const [activeAction, setActiveAction] = useState<CareAction | null>(null)
@@ -263,12 +309,17 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
     const idleBreath = (Math.sin(time * 1.72) * 0.014 + Math.sin(time * 0.63 + 0.8) * 0.006) * idleMotion
     const idleY = (Math.sin(time * 1.13) * 0.035 + Math.sin(time * 0.47 + 1.4) * 0.012) * idleMotion
     const idleTilt = Math.sin(time * 0.69 + 0.3) * 0.025 * idleMotion
+    const attentionPhase = personality === 'curious' ? 1.8 : personality === 'playful' ? 0.7 : 2.6
+    const attentionSignal = (Math.sin(time * 0.37 + attentionPhase) + Math.sin(time * 0.19 + attentionPhase * 0.6) + 2) * 0.25
+    const attention = activeAction || reducedMotion ? 0 : smoothRange(attentionSignal, 0.82, 0.98)
+    const attentionDirection = Math.sin(time * 0.23 + attentionPhase)
+    const attentionAmount = personality === 'curious' ? 0.14 : personality === 'playful' ? 0.1 : 0.075
     const stageScale = growthStage === 'luminary' ? 1.1 : growthStage === 'bloom' ? 1.04 : 0.94
     let x = 0
     let y = idleY
     let rotateX = 0
-    let rotateY = 0
-    let rotateZ = idleTilt
+    let rotateY = attention * attentionDirection * attentionAmount
+    let rotateZ = idleTilt + attention * attentionDirection * 0.018
     let scaleX = stageScale
     let scaleY = stageScale + idleBreath
     let scaleZ = stageScale
@@ -410,11 +461,45 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
       rightArm.current.rotation.z = THREE.MathUtils.damp(rightArm.current.rotation.z, rightArmRotation, 15, delta)
     }
 
+    let leftFootY = -0.62
+    let rightFootY = -0.62
+    let leftFootRotation = 0
+    let rightFootRotation = 0
+    if (activeAction === 'explore') {
+      const stride = Math.sin(contact * Math.PI * 4) * (1 - hold) * (1 - recovery)
+      leftFootY += Math.max(0, stride) * 0.12 * travel
+      rightFootY += Math.max(0, -stride) * 0.12 * travel
+      leftFootRotation = -stride * 0.22 * travel
+      rightFootRotation = -stride * 0.22 * travel
+    } else if (activeAction === 'play') {
+      const crouch = anticipation * (1 - contact)
+      const jump = Math.sin(contact * Math.PI)
+      leftFootY -= crouch * 0.06 * bodyMotion
+      rightFootY -= crouch * 0.06 * bodyMotion
+      leftFootRotation = (-crouch * 0.16 + jump * 0.22) * bodyMotion
+      rightFootRotation = (crouch * 0.16 - jump * 0.22) * bodyMotion
+    } else if (activeAction === 'rest') {
+      leftFootY -= poseWeight * 0.04 * bodyMotion
+      rightFootY -= poseWeight * 0.04 * bodyMotion
+      leftFootRotation = poseWeight * 0.16 * bodyMotion
+      rightFootRotation = -poseWeight * 0.16 * bodyMotion
+    } else if (activeAction === 'wash') {
+      const shake = Math.sin(hold * Math.PI) * Math.sin(hold * Math.PI * 2)
+      leftFootRotation = shake * 0.18 * travel
+      rightFootRotation = shake * 0.18 * travel
+    }
+    if (leftFoot.current && rightFoot.current) {
+      leftFoot.current.position.y = THREE.MathUtils.damp(leftFoot.current.position.y, leftFootY, 16, delta)
+      rightFoot.current.position.y = THREE.MathUtils.damp(rightFoot.current.position.y, rightFootY, 16, delta)
+      leftFoot.current.rotation.z = THREE.MathUtils.damp(leftFoot.current.rotation.z, leftFootRotation, 16, delta)
+      rightFoot.current.rotation.z = THREE.MathUtils.damp(rightFoot.current.rotation.z, rightFootRotation, 16, delta)
+    }
+
     const idleEars = EAR_POSES.idle
     const actionEars = activeAction ? EAR_POSES[activeAction] : idleEars
     const earTwitch = activeAction || reducedMotion ? 0 : Math.pow(Math.max(0, Math.sin(time * 0.73 - 1.1)), 14) * 0.12
-    let leftEarRotation = THREE.MathUtils.lerp(idleEars[0], actionEars[0], poseWeight) - earTwitch
-    let rightEarRotation = THREE.MathUtils.lerp(idleEars[1], actionEars[1], poseWeight) + earTwitch * 0.45
+    let leftEarRotation = THREE.MathUtils.lerp(idleEars[0], actionEars[0], poseWeight) - earTwitch - attention * 0.11
+    let rightEarRotation = THREE.MathUtils.lerp(idleEars[1], actionEars[1], poseWeight) + earTwitch * 0.45 - attention * 0.035
     if (activeAction === 'explore') {
       leftEarRotation -= exploreScan * 0.22
       rightEarRotation -= exploreScan * 0.12
@@ -433,8 +518,8 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
     const restingEye = mood === 'sleepy' || mood === 'unwell' ? 0.12 : mood === 'grumpy' ? 0.72 : mood === 'radiant' ? 1.16 : 1
     const naturalBlink = !activeAction && restingEye > 0.2 && Math.sin(time * 0.79) + Math.sin(time * 0.31 + 0.7) > 1.82
     let eyeTarget = naturalBlink ? 0.08 : restingEye
-    let gazeX = 0
-    let gazeY = 0
+    let gazeX = attention * attentionDirection * 0.035
+    let gazeY = attention * 0.012
     if (activeAction === 'rest') eyeTarget = THREE.MathUtils.lerp(restingEye, 0.1, contact * (1 - recovery))
     else if (activeAction === 'cuddle') eyeTarget = THREE.MathUtils.lerp(restingEye, 0.1, contact * (1 - recovery))
     else if (activeAction === 'feed') {
@@ -525,10 +610,10 @@ function Pet({ mood, accent, effectColor, lastAction, actionNonce, reducedMotion
           <sphereGeometry args={[0.22, 18, 14]} />
           <meshStandardMaterial color={accent} roughness={0.68} />
         </mesh>
-      <mesh castShadow position={[-0.48, -0.62, 0.08]} scale={[1.2, 0.65, 1.2]}>
+      <mesh ref={leftFoot} castShadow position={[-0.48, -0.62, 0.08]} scale={[1.2, 0.65, 1.2]}>
         <sphereGeometry args={[0.28, 20, 16]} /><meshStandardMaterial color={accent} roughness={0.7} />
       </mesh>
-      <mesh castShadow position={[0.48, -0.62, 0.08]} scale={[1.2, 0.65, 1.2]}>
+      <mesh ref={rightFoot} castShadow position={[0.48, -0.62, 0.08]} scale={[1.2, 0.65, 1.2]}>
         <sphereGeometry args={[0.28, 20, 16]} /><meshStandardMaterial color={accent} roughness={0.7} />
       </mesh>
 
@@ -628,6 +713,7 @@ interface WorldProps {
   lastAction: ActionSignal
   actionNonce: number
   reducedMotion: boolean
+  compact: boolean
   personality: PersonalityId
   growthStage: GrowthStageId
   incidentId: IncidentId | null
@@ -636,13 +722,19 @@ interface WorldProps {
   onPlay: () => void
 }
 
-function World({ theme, mood, lastAction, actionNonce, reducedMotion, personality, growthStage, incidentId, wearableId, roomItemId, onPlay }: WorldProps) {
+interface PetSceneProps extends WorldProps {
+  active: boolean
+}
+
+function World({ theme, mood, lastAction, actionNonce, reducedMotion, compact, personality, growthStage, incidentId, wearableId, roomItemId, onPlay }: WorldProps) {
+  const shadowSize = compact ? 512 : 1024
+
   return (
     <>
       <color attach="background" args={[theme.sky]} />
       <fog attach="fog" args={[theme.sky, 8, 16]} />
       <hemisphereLight args={[theme.glow, theme.ground, 1.8]} />
-      <directionalLight castShadow position={[3, 6, 4]} intensity={2.2} color={theme.glow} shadow-mapSize={[1024, 1024]} />
+      <directionalLight castShadow position={[3, 6, 4]} intensity={2.2} color={theme.glow} shadow-mapSize={[shadowSize, shadowSize]} />
       <pointLight position={[-3, 1.8, 2]} intensity={12} distance={7} color={theme.particle} />
       <mesh receiveShadow position={[0, -1.05, -0.1]}>
         <cylinderGeometry args={[3.8, 3.35, 0.38, 48]} />
@@ -666,22 +758,23 @@ function World({ theme, mood, lastAction, actionNonce, reducedMotion, personalit
         wearableId={wearableId}
         onPlay={onPlay}
       />
-      <Sparkles count={reducedMotion ? 10 : 34} scale={[6.4, 3.4, 3]} size={2.2} speed={reducedMotion ? 0 : 0.35} color={theme.particle} />
-      <ContactShadows position={[0, -1.03, 0.4]} opacity={0.32} scale={5} blur={2.4} far={3.5} />
+      <Sparkles count={reducedMotion ? 10 : compact ? 18 : 34} scale={[6.4, 3.4, 3]} size={2.2} speed={reducedMotion ? 0 : 0.35} color={theme.particle} />
+      <ContactShadows position={[0, -1.03, 0.4]} opacity={0.32} scale={5} blur={2.4} far={3.5} resolution={compact ? 256 : 512} />
     </>
   )
 }
 
-export function PetScene(props: WorldProps) {
+export function PetScene({ active, compact, ...worldProps }: PetSceneProps) {
   return (
     <Canvas
       shadows="soft"
-      dpr={[1, 1.75]}
+      frameloop={active ? 'always' : 'never'}
+      dpr={compact ? [1, 1.35] : [1, 1.75]}
       camera={{ position: [0, 1.05, 7.4], fov: 38, near: 0.1, far: 30 }}
-      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+      gl={{ antialias: true, alpha: false, powerPreference: compact ? 'low-power' : 'high-performance' }}
       fallback={<div className="webgl-fallback">3D graphics are unavailable. Mori is still safe.</div>}
     >
-      <World {...props} />
+      <World {...worldProps} compact={compact} />
     </Canvas>
   )
 }
