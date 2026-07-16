@@ -1,252 +1,434 @@
 <div align="center">
 
-# 🥚 Tamagochi
-### *An adorable open-source virtual pet game built with ❤️*
+# Tamagochi
 
-<img src="public/icon.svg" width="180"/>
+### An original, evolving virtual-pet game for the browser
 
-![GitHub stars](https://img.shields.io/github/stars/Tech-aficionado/Tamagochi---Open-Source-Game?style=for-the-badge)
-![GitHub forks](https://img.shields.io/github/forks/Tech-aficionado/Tamagochi---Open-Source-Game?style=for-the-badge)
-![GitHub issues](https://img.shields.io/github/issues/Tech-aficionado/Tamagochi---Open-Source-Game?style=for-the-badge)
-![PRs Welcome](https://img.shields.io/badge/PRs-Welcome-brightgreen?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+<img src="public/icon.svg" width="160" alt="Tamagochi app icon" />
 
-*A nostalgic virtual pet experience, recreated for the web.*
+Care for Mori, shape a personality, collect memories, play pocket activities, and build a tiny world that changes with your habits.
 
-⭐ If you enjoy this project, don't forget to star the repository!
+[Getting started](#getting-started) · [Gameplay](#gameplay) · [Architecture](#architecture) · [Contributing](#contributing)
 
 </div>
 
----
+> [!IMPORTANT]
+> Tamagochi is an original project inspired by the virtual-pet genre. It does not use Tamagotchi characters, artwork, music, or other protected assets.
 
-# 🌸 About the Project
+## What is Tamagochi?
 
-Remember the tiny virtual pets we all wanted to keep alive?
+Tamagochi is a local-first React game built around Mori, an original low-poly virtual companion. Six care actions affect Mori's needs and bond, while stories, activities, incidents, and repeated care gradually shape a Gentle, Playful, or Curious personality.
 
-**Tamagochi** brings that nostalgic feeling back as a fun open-source web game. Feed your pet, keep it happy, watch it grow, and don't let it get too lonely!
+The game runs entirely in the browser, saves automatically on the current device, works offline after installation, and has no account, ads, analytics, or paid mechanics.
 
-Whether you're here to play, contribute, or learn web development through a real project—you're welcome.
+## Highlights
 
----
+- **Expressive 3D companion:** Mori reacts to mood and every care action with distinct poses, expressions, particles, and movement.
+- **Six care actions:** Feed, Play, Wash, Rest, Cuddle, and Explore each change different needs.
+- **Two care modes:** Cozy offers gentler decay and safe incidents; Classic adds stronger time pressure.
+- **Living Evolution:** Care history leads from Seedling to Bloom to Luminary and shapes three valid personality paths.
+- **Pocket Incidents:** Deterministic care events remain until helped and reuse familiar care actions.
+- **Spark Workshop:** Earn Sparks in activities, then unlock three wearables and three room keepsakes.
+- **Branching memories:** Story choices improve Mori's bond and influence personality growth.
+- **Tamagochi Arcade:** Replay Star Catch and Signal Memory for scores, Sparks, streaks, and daily growth.
+- **Four complete worlds:** Sakura, Cyber, Moss, and Moon themes change the shell, room, lighting, and atmosphere.
+- **Installable PWA:** Android install prompts, iOS Add to Home Screen guidance, offline caching, and safe-area support.
+- **Accessible and responsive:** Semantic controls, meter labels, keyboard focus states, reduced-motion support, and mobile layouts.
+- **Local-first persistence:** Versioned, normalized saves preserve compatible progress without sending personal data anywhere.
 
-# ✨ Features
+## Table of contents
 
-- 🥚 Cute virtual pet
-- 🍔 Feed your Tamagochi
-- 😴 Sleep mechanics
-- ❤️ Happiness meter
-- 🍎 Hunger management
-- 🎮 Interactive gameplay
-- 🎨 Simple and clean UI
-- 📱 Responsive design
-- 🚀 Beginner-friendly codebase
-- 🌍 Open Source
+- [Gameplay](#gameplay)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+- [Available commands](#available-commands)
+- [PWA installation](#pwa-installation)
+- [Architecture](#architecture)
+- [Save data, offline play, and privacy](#save-data-offline-play-and-privacy)
+- [Deployment](#deployment)
+- [Contributing](#contributing)
+- [Original-content policy](#original-content-policy)
+- [Troubleshooting](#troubleshooting)
+- [Roadmap and contribution ideas](#roadmap-and-contribution-ideas)
+- [License status](#license-status)
 
----
+## Gameplay
 
-# 🛠️ Tech Stack
+### Care for Mori
 
-- HTML5
-- CSS3
-- JavaScript
+Mori tracks five needs: hunger, joy, hygiene, energy, and health. The care panel exposes six actions with different trade-offs:
 
----
+| Action | Primary purpose | Other effects |
+| --- | --- | --- |
+| Feed | Restores hunger | Slight health gain; can reduce hygiene |
+| Play | Restores joy | Costs energy and a little hunger |
+| Wash | Restores hygiene | Adds a little joy |
+| Rest | Restores energy | Adds health; costs hunger |
+| Cuddle | Builds joy and bond | Adds health and a little energy |
+| Explore | Adds joy and discovery | Costs energy, hunger, and hygiene |
 
-# 📂 Project Structure
+Every action has a distinct visible animation. Cuddle, for example, crosses Mori's arms inward, closes the eyes, leans into the pose, and releases hearts.
 
-```
-Tamagochi/
-│
-├── assets/
-│   ├── images/
-│   └── sounds/
-│
-├── css/
-│
-├── js/
-│
-├── index.html
-│
-└── README.md
-```
+### Choose a care mode
 
----
+- **Cozy:** slower decay, a 12-hour offline-decay cap, minimum need floors, and no health penalty from unresolved incidents.
+- **Classic:** full decay and gradual, capped incident health pressure until Mori receives the matching care action.
 
-# 🚀 Getting Started
+Modes can be changed at any time. Timed state is settled before the new mode takes effect.
 
-## Clone the repository
+### Shape Living Evolution
+
+Growth points move Mori through three forms:
+
+1. **Seedling** — the starting form.
+2. **Bloom** — unlocked at 120 growth.
+3. **Luminary** — unlocked at 320 growth.
+
+Care, story choices, incidents, and the Arcade shape Gentle, Playful, and Curious scores. Care-based growth is cooldown-gated, and Arcade growth is limited to once per UTC day, so normal play is rewarded without encouraging repetitive farming.
+
+### Resolve Pocket Incidents
+
+An incident can appear while time advances. It remains visible until the matching action is used:
+
+- **A Static Cloud** → Cuddle
+- **The Tangled Sprout** → Wash
+- **A Wandering Signal** → Explore
+
+The Growth Studio explains the active incident, and the relevant care button receives a visible and accessible rescue state. Resolving an incident awards Sparks and growth.
+
+### Earn and spend Sparks
+
+Star Catch and Signal Memory award Sparks based on performance and track local best scores. The Spark Workshop contains cosmetic rewards only:
+
+- Wearables: Star Ribbon, Sprout Crown, Moon Charm
+- Room keepsakes: Memory Lantern, Tiny Garden, Dream Mobile
+
+Device themes remain free. Workshop items provide no gameplay advantage.
+
+## Tech stack
+
+| Area | Technology |
+| --- | --- |
+| Language | TypeScript 6 |
+| UI | React 19 |
+| State and persistence | Zustand 5 |
+| 3D rendering | Three.js, React Three Fiber, Drei |
+| Styling | Layered CSS with responsive and reduced-motion rules |
+| Audio | Original procedural Web Audio chiptune and sound effects |
+| Tooling | Vite 8, ESLint 10 |
+| Offline/PWA | vite-plugin-pwa / Workbox |
+| Deployment configuration | Vercel |
+
+All dependency versions are pinned in `package.json` and `package-lock.json`.
+
+## Getting started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) **22.x**
+- npm, included with Node.js
+- A modern browser with JavaScript enabled
+- WebGL for the full 3D scene; a safe fallback is shown when WebGL is unavailable
+
+No environment variables, database, account, or external service credentials are required.
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/Tech-aficionado/Tamagochi---Open-Source-Game.git
-```
-
-Move into the directory
-
-```bash
 cd Tamagochi---Open-Source-Game
 ```
 
-Open
-
-```
-index.html
-```
-
-Or use VS Code Live Server.
-
----
-
-# 🎮 Gameplay
-
-Take care of your virtual companion by:
-
-🍔 Feeding it
-
-😴 Letting it rest
-
-❤️ Keeping it happy
-
-⏰ Checking on it regularly
-
-Every decision affects your little friend's wellbeing.
-
-Can you keep it alive?
-
----
-
-# 🤝 Contributing
-
-We love contributions from everyone!
-
-Whether you're fixing a bug, improving the UI, adding animations, or implementing new game mechanics—your contribution matters.
-
-### How to contribute
-
-1. Fork the repository
-2. Create a new branch
+### 2. Install exact dependencies
 
 ```bash
-git checkout -b feature/amazing-feature
+npm ci
 ```
 
-3. Commit your changes
+Use `npm install` only when intentionally updating dependencies and the lockfile.
+
+### 3. Start local development
 
 ```bash
-git commit -m "Added amazing feature"
+npm run dev
 ```
 
-4. Push your branch
+Vite prints the local URL, normally `http://localhost:5173`. The development server is not an offline-production test; use a production build and preview for that.
+
+### 4. Validate a change
 
 ```bash
-git push origin feature/amazing-feature
+npm run lint
+npm run build
+npm audit --audit-level=high
 ```
 
-5. Open a Pull Request 🚀
+### 5. Preview the production build
 
----
-
-# 💡 Good First Issues
-
-Perfect for beginners:
-
-- Improve animations
-- Add sound effects
-- Mobile responsiveness
-- Add new pet emotions
-- Better UI styling
-- Dark mode
-- Save game using Local Storage
-- Achievement system
-- More pet accessories
-- Multiple pets
-
----
-
-# 🗺️ Roadmap
-
-- [ ] Save Progress
-- [ ] Day/Night Cycle
-- [ ] New Pet Species
-- [ ] Inventory System
-- [ ] Shop
-- [ ] Accessories
-- [ ] Mini Games
-- [ ] Sound Effects
-- [ ] Background Music
-- [ ] Achievements
-- [ ] Multiplayer Pet Visits (Future)
-
----
-
-# 🌱 Why Contribute?
-
-This repository is beginner-friendly and intended to help developers:
-
-- Practice Git & GitHub
-- Learn JavaScript
-- Make meaningful Open Source contributions
-- Build portfolio-worthy projects
-- Collaborate with developers worldwide
-
-No contribution is too small. ❤️
-
----
-
-# 📸 Screenshots
-
-```
-assets/screenshots/home.png
-assets/screenshots/gameplay.png
+```bash
+npm run preview
 ```
 
----
+The generated site is written to `dist/`. That directory is intentionally ignored and must not be committed.
 
-# 🐛 Found a Bug?
+## Available commands
 
-Open an issue describing:
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server |
+| `npm run lint` | Run ESLint across the repository |
+| `npm run build` | Type-check and create the production/PWA bundle |
+| `npm run preview` | Serve the generated production build locally |
+| `npm audit --audit-level=high` | Check installed packages for high-severity vulnerabilities |
 
-- What happened
-- Expected behavior
-- Screenshots (if applicable)
-- Browser/device
+There is currently no permanent automated test suite. Do not document or assume a test command that is not present in `package.json`; validate with lint, build, targeted browser checks, and focused deterministic probes when changing simulation rules.
 
----
+## PWA installation
 
-# ⭐ Support
+Tamagochi can be installed from a secure production deployment or a supported local secure context.
 
-If you like this project,
+### Android and desktop Chromium browsers
 
-⭐ Star the repository
+1. Open Tamagochi in Chrome, Edge, or another compatible browser.
+2. Use **Install App** when Tamagochi displays it, or use the browser's install option.
+3. Confirm installation. The app opens in standalone mode and remains available offline after its assets are cached.
 
-🍴 Fork it
+### iPhone and iPad
 
-🐞 Report bugs
+1. Open Tamagochi in Safari.
+2. Tap **Share**.
+3. Choose **Add to Home Screen**.
+4. Tap **Add**.
 
-💡 Suggest features
+The in-game install control opens these iOS instructions when automatic install prompts are unavailable.
 
-🤝 Contribute
+> Offline support caches the application shell. Save data is still browser-local, so clearing site data or uninstalling may remove Mori's progress.
 
-Every contribution helps this project grow!
+## Architecture
 
----
+Tamagochi separates deterministic game state from React UI and Three.js presentation:
 
-# 📜 License
+```text
+User input
+   │
+   ▼
+React UI ───────────────► Zustand actions
+   │                           │
+   │                           ├── settle elapsed time
+   │                           ├── apply care/story/activity rules
+   │                           ├── resolve incidents and purchases
+   │                           └── persist normalized snapshot
+   │
+   └──────── snapshot ──► React Three Fiber scene
+                              ├── Mori pose and expression
+                              ├── evolution/personality marks
+                              ├── equipped cosmetics
+                              └── themed room and effects
+```
 
-This project is licensed under the **MIT License**.
+### Project structure
 
-Feel free to use, modify, and distribute.
+```text
+.
+├── public/                     # PWA icons and offline fallback
+├── docs/
+│   ├── DESIGN.md               # Product and technical decisions
+│   └── plans/                  # Implementation plans
+├── src/
+│   ├── audio/chiptune.ts       # Procedural music and action SFX
+│   ├── data/themes.ts          # Four data-driven device worlds
+│   ├── game/
+│   │   ├── progression.ts      # Pure progression, incident, and catalog rules
+│   │   ├── save.ts             # Fresh-state creation and save normalization
+│   │   ├── store.ts            # Zustand simulation actions and persistence
+│   │   └── types.ts            # Shared game-domain types and mood rules
+│   ├── scene/PetScene.tsx      # Low-poly 3D world and action animation
+│   ├── ui/
+│   │   ├── ActivityArcade.tsx  # Star Catch and Signal Memory
+│   │   ├── FirstRunTutorial.tsx# Persistent four-step onboarding
+│   │   └── GrowthStudio.tsx    # Evolution, incidents, and workshop UI
+│   ├── App.tsx                 # Main accessible application composition
+│   ├── main.tsx                # React entry point
+│   └── styles.css              # Visual system and responsive behavior
+├── vite.config.ts              # Vite and PWA configuration
+└── vercel.json                 # Vercel build/output settings
+```
+
+### Important design boundaries
+
+- `progression.ts` contains pure, typed balancing rules rather than UI logic.
+- `save.ts` treats persisted browser data as untrusted and normalizes it field by field.
+- `store.ts` settles elapsed time once before timed actions and performs game transitions atomically.
+- `PetScene.tsx` renders the snapshot but does not own game truth.
+- React provides semantic controls and readable status independently of the 3D presentation.
+- New visual content should remain bounded and low-poly to protect mobile performance.
+
+See [`docs/DESIGN.md`](docs/DESIGN.md) and the [Living Progression plan](docs/plans/2026-07-16-living-progression.md) for rationale and balancing constraints.
+
+## Save data, offline play, and privacy
+
+- Saves use browser storage under the compatibility key `pocket-worlds-save-v1`.
+- The current schema is version 3 and safely normalizes malformed, stale, or legacy values.
+- The older tutorial completion key remains supported so returning players are not forced through onboarding again.
+- Offline need decay is computed from timestamps when the game resumes.
+- Saves are local to a browser profile and are not synchronized across devices or tabs.
+- Tamagochi has no backend, login, analytics, advertising SDK, or telemetry.
+- Editing the local clock or save data can affect progression; this is accepted for an offline solo game.
+
+To start over, use **Reset Save** in the footer and confirm the prompt. To remove all local state manually, clear the site's storage in browser settings.
+
+## Deployment
+
+The repository includes `vercel.json` with the Vite framework preset, `npm run build`, and `dist` output.
+
+### Deploy with Vercel
+
+1. Import the GitHub repository into Vercel.
+2. Keep the detected framework as **Vite**.
+3. Use the repository settings:
+   - Build command: `npm run build`
+   - Output directory: `dist`
+4. Deploy.
+
+No environment variables are required. Use HTTPS in production so service workers and installation features are available.
+
+You can also deploy the contents of `dist/` to any static host that supports HTTPS. Preserve generated PWA files and serve `index.html` for the application entry point.
+
+## Contributing
+
+Contributions are welcome, especially focused changes that preserve the game's original identity and local-first design.
+
+### Contribution workflow
+
+1. Fork the repository.
+2. Create a focused branch:
+
+   ```bash
+   git switch -c feat/short-description
+   ```
+
+3. Install and validate locally:
+
+   ```bash
+   npm ci
+   npm run lint
+   npm run build
+   ```
+
+4. Commit one logical change at a time using a conventional message, for example:
+
+   ```bash
+   git commit -m "feat(game): Add a new pocket incident"
+   ```
+
+5. Push your branch and open a pull request against `main`.
+
+### Pull request expectations
+
+- Explain what changed, why it belongs in Tamagochi, and how it was checked.
+- Keep simulation behavior deterministic and persistence backward-compatible.
+- Preserve the storage key `pocket-worlds-save-v1` unless a documented migration requires otherwise.
+- Do not break the six distinct care animations; Cuddle must continue to read visibly as cuddling.
+- Include accessible text/status for information conveyed in 3D or through color.
+- Check desktop and mobile layouts and `prefers-reduced-motion` behavior.
+- Avoid unrelated formatting, generated output, editor settings, and temporary probe files.
+- Never commit `node_modules/`, `dist/`, `.vscode/`, `.env*`, or files inside `.git/`.
+
+## Original-content policy
+
+Contributions must be original or used under terms compatible with the repository's eventual license. Do not submit:
+
+- Tamagotchi characters, device art, logos, copied UI, or story content
+- Ripped or imitated commercial game music and sound effects
+- Assets without clear provenance and reuse permission
+- Trademarked branding that suggests official affiliation
+
+New creatures, stories, sounds, themes, and cosmetics should extend Tamagochi's own pocket-world retro-futurist direction. When contributing third-party assets, document the source, author, and applicable terms in the pull request.
+
+## Troubleshooting
+
+### `npm ci` reports an unsupported Node version
+
+Use Node.js 22.x, as required by `package.json`. Confirm with:
+
+```bash
+node --version
+npm --version
+```
+
+### The 3D pet is missing
+
+- Confirm hardware acceleration and WebGL are enabled.
+- Update the browser and graphics driver.
+- Disable extensions that block canvas or WebGL content.
+- Check the browser console for a rendering error.
+
+Tamagochi should show a text fallback when WebGL is unavailable; Mori's saved state remains safe.
+
+### Music does not start automatically
+
+Browsers block audio before user interaction. Press the music button once to create/resume the Web Audio context. Tamagochi intentionally does not autoplay sound.
+
+### The install button is not visible
+
+- Confirm the app is served over HTTPS or from a supported local development origin.
+- The button is hidden when the app is already running in standalone mode.
+- On iOS, open the site in Safari and use Share → Add to Home Screen.
+- A browser may delay its install event until PWA eligibility criteria are met.
+
+### Offline mode does not work during development
+
+Service-worker behavior should be checked against a production build:
+
+```bash
+npm run build
+npm run preview
+```
+
+Load the preview once while online, then use browser developer tools to test an offline reload.
+
+### Progress looks different after clearing browser data
+
+Saves are not cloud-backed. Clearing site storage, using private browsing, switching browser profiles, or uninstalling the PWA can remove local progress.
+
+### A stale dependency or generated bundle causes problems
+
+Recreate local dependencies and output:
+
+```bash
+npm ci
+npm run build
+```
+
+Do not commit the regenerated `dist/` directory.
+
+## Roadmap and contribution ideas
+
+The existing game already includes saves, themes, activities, music, sound effects, cosmetics, progression, incidents, stories, and mobile PWA support. Good future contributions include:
+
+- Additional original story chapters and incident variants
+- More data-driven original creatures without replacing Mori's identity
+- Import/export for local save backups
+- Explicit cross-tab conflict handling
+- Optional quality controls for lower-powered mobile GPUs
+- Expanded keyboard and assistive-technology testing
+- Focused simulation unit tests and browser-level smoke tests
+- New original Arcade activities with bounded daily progression rewards
+- Localization infrastructure and translated content
+- A documented, community-approved project license
+
+Before implementing a large feature, open an issue or discussion describing its player value, persistence impact, accessibility behavior, performance cost, and original-content plan.
+
+## License status
+
+**No software license file has been declared in this repository yet.** Public source code alone does not grant permission to copy, redistribute, or create derivative works. Until the maintainers add an explicit license, default copyright restrictions apply.
+
+You may inspect the code and submit contributions through the repository workflow, but do not assume MIT or another open-source license. A future licensing contribution should add a real `LICENSE` file and update this section in the same change.
 
 ---
 
 <div align="center">
 
-### 💖 Made with passion by
-
-## **Mansha Verma**
-## **Shivansh Goel**
-
-*"Code. Create. Care."*
-
-Happy Coding! 🚀
+Built as an original community virtual-pet project. Code, create, care.
 
 </div>
