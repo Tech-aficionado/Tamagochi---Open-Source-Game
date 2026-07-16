@@ -16,7 +16,7 @@
     font-synthesis: none;
     text-rendering: optimizeLegibility;
   }
-  body { min-width: 320px; min-height: 100vh; overflow-x: hidden; }
+  body { min-width: 320px; min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
   button, a { -webkit-tap-highlight-color: transparent; }
   button:focus-visible, a:focus-visible { outline: 3px solid #fff; outline-offset: 3px; box-shadow: 0 0 0 6px var(--ink); }
 }
@@ -27,6 +27,7 @@
     --paper-deep: #eadcc2;
     --line: color-mix(in srgb, var(--ink) 20%, transparent);
     min-height: 100vh;
+    min-height: 100dvh;
     color: var(--ink);
     background:
       linear-gradient(90deg, color-mix(in srgb, var(--shell) 8%, transparent) 1px, transparent 1px) 0 0 / 34px 34px,
@@ -47,6 +48,7 @@
   .save-status i { width: 7px; aspect-ratio: 1; border-radius: 50%; background: #3f9c69; box-shadow: 0 0 0 3px color-mix(in srgb, #3f9c69 18%, transparent); }
   .text-button, .icon-button { min-height: 44px; border: 1px solid var(--line); background: color-mix(in srgb, var(--paper) 78%, transparent); cursor: pointer; font-weight: 900; letter-spacing: .08em; }
   .text-button { padding: 10px 14px; font-size: 10px; }
+  .install-label-short { display: none; }
   .icon-button { width: 44px; aspect-ratio: 1; border-radius: 50%; font-size: 18px; }
   .return-brief { width: min(calc(100% - 44px), 1464px); margin: 20px auto 0; padding: 18px 20px; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 18px; align-items: center; position: relative; z-index: 4; border: 2px solid var(--ink); background: color-mix(in srgb, var(--accent) 24%, var(--paper)); box-shadow: 7px 7px 0 color-mix(in srgb, var(--shell) 55%, var(--ink)); animation: slide-in .35s both; }
   .return-brief-mark { width: 52px; aspect-ratio: 1; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 50%; background: var(--accent); font: 22px 'Dela Gothic One'; box-shadow: 3px 3px 0 var(--ink); }
@@ -61,7 +63,7 @@
   h1, h2, p { margin-top: 0; }
   h1, h2 { font-family: 'Dela Gothic One', sans-serif; font-weight: 400; }
   h1 em, h2 em { color: var(--shell); font-style: normal; text-shadow: 2px 2px 0 var(--ink); -webkit-text-stroke: 1px var(--ink); }
-  .game-layout { min-height: calc(100vh - 84px); display: grid; grid-template-columns: minmax(210px, .72fr) minmax(400px, 1.22fr) minmax(290px, .82fr); gap: clamp(18px, 3vw, 54px); align-items: center; padding: 54px clamp(22px, 4vw, 68px) 62px; max-width: 1600px; margin: auto; }
+  .game-layout { min-height: calc(100vh - 84px); min-height: calc(100dvh - 84px); display: grid; grid-template-columns: minmax(210px, .72fr) minmax(400px, 1.22fr) minmax(290px, .82fr); gap: clamp(18px, 3vw, 54px); align-items: center; padding: 54px clamp(22px, 4vw, 68px) 62px; max-width: 1600px; margin: auto; }
   .hero-copy { align-self: start; padding-top: 12vh; position: relative; z-index: 2; }
   .hero-copy h1 { font-size: clamp(42px, 5vw, 82px); line-height: .88; letter-spacing: -.075em; margin-bottom: 28px; }
   .hero-note { max-width: 240px; font-size: 15px; font-weight: 650; line-height: 1.55; }
@@ -432,6 +434,11 @@
     .screen-bezel { border-width: 3px; }
     .screen-caption strong { font-size: 12px; }
     .screen-caption span { line-height: 1.1; }
+    .action-feedback { bottom: 24%; width: calc(100% - 24px); max-width: 280px; grid-template-columns: 36px minmax(0, 1fr); border-radius: 20px; padding-right: 11px; }
+    .action-feedback > span { width: 34px; }
+    .action-feedback strong, .action-feedback small { white-space: normal; overflow-wrap: anywhere; }
+    .action-feedback small { line-height: 1.25; }
+    .game-overlay, .tutorial-overlay, .install-overlay, .story-overlay { background: color-mix(in srgb, var(--ink) 94%, transparent); backdrop-filter: blur(2px); }
     .growth-heading h2 { font-size: 35px; }
     .identity-card { grid-template-columns: 1fr; }
     .identity-mark { grid-row: auto; }
@@ -440,6 +447,15 @@
     .workshop-heading { align-items: flex-start; flex-direction: column; }
     .keepsake-action { grid-template-columns: 1fr; }
     footer { align-items: flex-start; gap: 20px; }
+  }
+
+  @media (max-width: 360px) {
+    .topbar { padding-right: max(10px, env(safe-area-inset-right, 0px)); padding-left: max(10px, env(safe-area-inset-left, 0px)); }
+    .brand { min-width: 44px; min-height: 44px; }
+    .brand > span:last-child, .install-label-long { display: none; }
+    .install-label-short { display: inline; }
+    .topbar-actions { gap: 6px; }
+    .text-button { padding-inline: 9px; }
   }
 
   @media (hover: none) {
