@@ -1,6 +1,22 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { clampNeed, type CareAction, type GameMode, type MiniGameId, type PetNeeds, type StoryEvent, type ThemeId } from './types'
+import {
+  CARE_GROWTH_COOLDOWN_MS,
+  CARE_TRAIT,
+  INCIDENT_BY_ID,
+  INCIDENT_REWARD_GROWTH,
+  INCIDENT_REWARD_SPARKS,
+  KEEPSAKE_BY_ID,
+  applyTraitAward,
+  canPurchaseKeepsake,
+  isEquippable,
+  isKeepsakeId,
+  scheduleIncidentAfterResolution,
+  settleTimedState,
+  utcDateKey,
+} from './progression'
+import { freshSnapshot, normalizeSnapshot } from './save'
+import { clampNeed, type CareAction, type GameMode, type GameSnapshot, type KeepsakeId, type MiniGameId, type PetNeeds, type StoryEvent, type ThemeId } from './types'
 
 export const STORY_EVENTS: readonly StoryEvent[] = [
   {
@@ -8,8 +24,8 @@ export const STORY_EVENTS: readonly StoryEvent[] = [
     title: 'Something is tapping from inside the shell…',
     body: 'Two bright eyes appear. The little creature waits for the first sound of its new life.',
     choices: [
-      { label: 'Hum a soft hello', reply: 'Mori sways to the tune and remembers it.', bond: 8, joy: 10 },
-      { label: 'Tap back twice', reply: 'Tap. Tap. A secret greeting is born.', bond: 6, joy: 14 },
+      { label: 'Hum a soft hello', reply: 'Mori sways to the tune and remembers it.', bond: 8, joy: 10, trait: 'gentle' },
+      { label: 'Tap back twice', reply: 'Tap. Tap. A secret greeting is born.', bond: 6, joy: 14, trait: 'playful' },
     ],
   },
   {
@@ -17,8 +33,8 @@ export const STORY_EVENTS: readonly StoryEvent[] = [
     title: 'A tiny light falls from the sky.',
     body: 'Mori cups the flickering spark. It could warm the room—or guide another creature home.',
     choices: [
-      { label: 'Hang it by the window', reply: 'The room glows like a remembered summer.', bond: 9, joy: 6 },
-      { label: 'Send it home', reply: 'Far away, another pocket world blinks thank you.', bond: 12, joy: 4 },
+      { label: 'Hang it by the window', reply: 'The room glows like a remembered summer.', bond: 9, joy: 6, trait: 'gentle' },
+      { label: 'Send it home', reply: 'Far away, another pocket world blinks thank you.', bond: 12, joy: 4, trait: 'curious' },
     ],
   },
   {
@@ -26,58 +42,25 @@ export const STORY_EVENTS: readonly StoryEvent[] = [
     title: 'The rain has forgotten its rhythm.',
     body: 'Drops hover silently above the garden. Mori looks to you for the missing beat.',
     choices: [
-      { label: 'Dance the rhythm', reply: 'The rain tumbles down in a laughing chorus.', bond: 10, joy: 12 },
-      { label: 'Listen together', reply: 'In the quiet, the rain finds its own song.', bond: 14, joy: 7 },
+      { label: 'Dance the rhythm', reply: 'The rain tumbles down in a laughing chorus.', bond: 10, joy: 12, trait: 'playful' },
+      { label: 'Listen together', reply: 'In the quiet, the rain finds its own song.', bond: 14, joy: 7, trait: 'curious' },
     ],
   },
 ]
 
-interface GameState {
-  petName: string
-  needs: PetNeeds
-  bond: number
-  ageMinutes: number
-  mode: GameMode
-  themeId: ThemeId
-  lastUpdated: number
-  lastAction: CareAction | 'story' | 'activity' | null
-  actionNonce: number
-  storyIndex: number
-  storyOpen: boolean
-  lastReply: string | null
-  sparks: number
-  playStreak: number
-  lastActivityDate: string | null
-  activityBest: Record<MiniGameId, number>
+interface GameState extends GameSnapshot {
   tick: () => void
   care: (action: CareAction) => void
   completeActivity: (gameId: MiniGameId, score: number) => void
   chooseStory: (choiceIndex: number) => void
+  purchaseKeepsake: (itemId: KeepsakeId) => void
+  toggleKeepsake: (itemId: KeepsakeId) => void
   openStory: () => void
   closeStory: () => void
   setTheme: (themeId: ThemeId) => void
   setMode: (mode: GameMode) => void
   reset: () => void
 }
-
-const freshState = () => ({
-  petName: 'Mori',
-  needs: { hunger: 78, joy: 72, hygiene: 84, energy: 76, health: 92 },
-  bond: 4,
-  ageMinutes: 0,
-  mode: 'cozy' as GameMode,
-  themeId: 'sakura' as ThemeId,
-  lastUpdated: Date.now(),
-  lastAction: null,
-  actionNonce: 0,
-  storyIndex: 0,
-  storyOpen: true,
-  lastReply: null,
-  sparks: 0,
-  playStreak: 0,
-  lastActivityDate: null,
-  activityBest: { 'star-catch': 0, 'memory-flip': 0 },
-})
 
 const CARE_EFFECTS: Record<CareAction, Partial<PetNeeds>> = {
   feed: { hunger: 26, health: 3, hygiene: -4 },
@@ -88,109 +71,149 @@ const CARE_EFFECTS: Record<CareAction, Partial<PetNeeds>> = {
   explore: { joy: 22, energy: -13, hunger: -9, hygiene: -3 },
 }
 
-function decayNeeds(state: Pick<GameState, 'needs' | 'mode' | 'lastUpdated'>, now: number): PetNeeds {
-  const rawMinutes = Math.max(0, (now - state.lastUpdated) / 60_000)
-  const elapsedMinutes = state.mode === 'cozy' ? Math.min(rawMinutes, 12 * 60) : rawMinutes
-  const pace = state.mode === 'cozy' ? 0.58 : 1
-  const floor = state.mode === 'cozy' ? 18 : 0
-  const hunger = Math.max(floor, state.needs.hunger - elapsedMinutes * 0.55 * pace)
-  const joy = Math.max(floor, state.needs.joy - elapsedMinutes * 0.38 * pace)
-  const hygiene = Math.max(floor, state.needs.hygiene - elapsedMinutes * 0.28 * pace)
-  const energy = Math.max(floor, state.needs.energy - elapsedMinutes * 0.32 * pace)
-  const isStruggling = hunger < 18 || hygiene < 16
-  const healthDelta = elapsedMinutes * (isStruggling ? -0.4 : 0.08) * pace
-  return { hunger, joy, hygiene, energy, health: clampNeed(state.needs.health + healthDelta) }
+const applyCareEffects = (current: PetNeeds, action: CareAction) => {
+  const needs = { ...current }
+  const effects = CARE_EFFECTS[action]
+  for (const key of Object.keys(effects) as (keyof PetNeeds)[]) {
+    needs[key] = clampNeed(needs[key] + (effects[key] ?? 0))
+  }
+  return needs
 }
 
 export const useGameStore = create<GameState>()(
   persist(
     (set) => ({
-      ...freshState(),
-      tick: () => set((state) => {
-        const now = Date.now()
-        const elapsedMinutes = Math.max(0, (now - state.lastUpdated) / 60_000)
-        if (elapsedMinutes < 0.015) return state
-        return {
-          needs: decayNeeds(state, now),
-          ageMinutes: state.ageMinutes + elapsedMinutes,
-          lastUpdated: now,
-        }
-      }),
+      ...freshSnapshot(),
+      tick: () => set((state) => settleTimedState(state, Date.now())),
       care: (action) => set((state) => {
-        const now = Date.now()
-        const current = decayNeeds(state, now)
-        const effects = CARE_EFFECTS[action]
-        const needs = { ...current }
-        for (const key of Object.keys(effects) as (keyof PetNeeds)[]) {
-          needs[key] = clampNeed(needs[key] + (effects[key] ?? 0))
+        const sampledNow = Date.now()
+        const settled = settleTimedState(state, sampledNow)
+        const now = settled.lastUpdated
+        const growthReady = now >= state.growthCooldownUntil
+        const trait = CARE_TRAIT[action]
+        let growthPoints = state.growthPoints + (growthReady ? 4 : 0)
+        const personalityScores = growthReady ? applyTraitAward(state.personalityScores, trait, 3) : state.personalityScores
+        const personalityFocus = growthReady ? trait : state.personalityFocus
+        let sparks = state.sparks
+        let activeIncident = settled.activeIncident
+        let nextIncidentAt = settled.nextIncidentAt
+        let lastReply = growthReady ? `${trait[0].toUpperCase()}${trait.slice(1)} imprint · +4 growth.` : null
+
+        if (activeIncident && INCIDENT_BY_ID[activeIncident.id].action === action) {
+          const resolvedId = activeIncident.id
+          sparks += INCIDENT_REWARD_SPARKS
+          growthPoints += INCIDENT_REWARD_GROWTH
+          activeIncident = null
+          nextIncidentAt = scheduleIncidentAfterResolution(now, state.actionNonce, state.storyIndex, resolvedId, state.ownedItemIds.length)
+          lastReply = `${INCIDENT_BY_ID[resolvedId].title} cleared with ${action}. +${INCIDENT_REWARD_SPARKS} Sparks · +${INCIDENT_REWARD_GROWTH} growth.`
         }
+
         const bondGain = action === 'cuddle' ? 4 : action === 'play' || action === 'explore' ? 3 : 1.5
         const nextBond = clampNeed(state.bond + bondGain)
         const storyReady = state.storyIndex < STORY_EVENTS.length && nextBond >= state.storyIndex * 10 + 4
         return {
-          needs,
+          ...settled,
+          needs: applyCareEffects(settled.needs, action),
           bond: nextBond,
-          lastUpdated: now,
+          sparks,
+          growthPoints,
+          growthCooldownUntil: growthReady ? now + CARE_GROWTH_COOLDOWN_MS : state.growthCooldownUntil,
+          personalityScores,
+          personalityFocus,
+          activeIncident,
+          nextIncidentAt,
           lastAction: action,
           actionNonce: state.actionNonce + 1,
           storyOpen: state.storyOpen || storyReady,
-          lastReply: null,
+          lastReply,
         }
       }),
       completeActivity: (gameId, score) => set((state) => {
-        const today = new Date().toISOString().slice(0, 10)
+        const sampledNow = Date.now()
+        const settled = settleTimedState(state, sampledNow)
+        const today = utcDateKey(sampledNow)
         const previous = state.lastActivityDate ? Date.parse(`${state.lastActivityDate}T00:00:00Z`) : null
         const dayGap = previous === null ? null : Math.round((Date.parse(`${today}T00:00:00Z`) - previous) / 86_400_000)
         const playStreak = dayGap === 0 ? state.playStreak : dayGap === 1 ? state.playStreak + 1 : 1
         const reward = Math.max(3, Math.floor(score / 2))
+        const progressionReady = state.lastGrowthActivityDate !== today
+        const trait = gameId === 'star-catch' ? 'playful' : 'curious'
         return {
+          ...settled,
           sparks: state.sparks + reward,
           playStreak,
           lastActivityDate: today,
+          lastGrowthActivityDate: progressionReady ? today : state.lastGrowthActivityDate,
+          growthPoints: state.growthPoints + (progressionReady ? 6 : 0),
+          personalityScores: progressionReady ? applyTraitAward(state.personalityScores, trait, 3) : state.personalityScores,
+          personalityFocus: progressionReady ? trait : state.personalityFocus,
           activityBest: { ...state.activityBest, [gameId]: Math.max(state.activityBest[gameId], score) },
           needs: {
-            ...state.needs,
-            joy: clampNeed(state.needs.joy + Math.min(28, 8 + score)),
-            energy: clampNeed(state.needs.energy - 6),
-            hunger: clampNeed(state.needs.hunger - 2),
+            ...settled.needs,
+            joy: clampNeed(settled.needs.joy + Math.min(28, 8 + score)),
+            energy: clampNeed(settled.needs.energy - 6),
+            hunger: clampNeed(settled.needs.hunger - 2),
           },
           bond: clampNeed(state.bond + 2 + score / 10),
           lastAction: 'activity' as const,
           actionNonce: state.actionNonce + 1,
-          lastReply: `${state.petName} found ${reward} Sparks in the Tamagochi Arcade!`,
+          lastReply: `${state.petName} found ${reward} Sparks${progressionReady ? ' and a +6 growth echo' : ''} in the Tamagochi Arcade!`,
         }
       }),
       chooseStory: (choiceIndex) => set((state) => {
         const event = STORY_EVENTS[state.storyIndex]
         const choice = event?.choices[choiceIndex]
         if (!choice) return state
+        const settled = settleTimedState(state, Date.now())
         return {
+          ...settled,
           bond: clampNeed(state.bond + choice.bond),
-          needs: { ...state.needs, joy: clampNeed(state.needs.joy + choice.joy) },
+          needs: { ...settled.needs, joy: clampNeed(settled.needs.joy + choice.joy) },
+          personalityScores: applyTraitAward(state.personalityScores, choice.trait, 5),
+          personalityFocus: choice.trait,
+          growthPoints: state.growthPoints + 12,
           storyIndex: state.storyIndex + 1,
           storyOpen: false,
           lastAction: 'story',
           actionNonce: state.actionNonce + 1,
-          lastReply: choice.reply,
+          lastReply: `${choice.reply} · +12 growth.`,
+        }
+      }),
+      purchaseKeepsake: (itemId) => set((state) => {
+        if (!isKeepsakeId(itemId) || !canPurchaseKeepsake(state.sparks, state.ownedItemIds, itemId)) return state
+        const item = KEEPSAKE_BY_ID[itemId]
+        return {
+          sparks: state.sparks - item.cost,
+          ownedItemIds: [...state.ownedItemIds, itemId],
+          lastAction: 'workshop',
+          actionNonce: state.actionNonce + 1,
+          lastReply: `${item.name} joined Mori’s keepsake collection.`,
+        }
+      }),
+      toggleKeepsake: (itemId) => set((state) => {
+        if (!isKeepsakeId(itemId)) return state
+        const item = KEEPSAKE_BY_ID[itemId]
+        if (!isEquippable(state.ownedItemIds, itemId, item.category)) return state
+        const key = item.category === 'wearable' ? 'equippedWearable' : 'equippedRoomItem'
+        const equipped = state[key] === itemId ? null : itemId
+        return {
+          [key]: equipped,
+          lastAction: 'workshop',
+          actionNonce: state.actionNonce + 1,
+          lastReply: equipped ? `${item.name} is now part of Mori’s world.` : `${item.name} returned to the keepsake drawer.`,
         }
       }),
       openStory: () => set((state) => ({ storyOpen: state.storyIndex < STORY_EVENTS.length })),
       closeStory: () => set({ storyOpen: false }),
       setTheme: (themeId) => set({ themeId, lastReply: null }),
-      setMode: (mode) => set({ mode, lastUpdated: Date.now() }),
-      reset: () => set(freshState()),
+      setMode: (mode) => set((state) => ({ ...settleTimedState(state, Date.now()), mode })),
+      reset: () => set(freshSnapshot()),
     }),
     {
       name: 'pocket-worlds-save-v1',
-      version: 2,
-      migrate: (persistedState) => {
-        const persisted = persistedState as Partial<GameState>
-        return {
-          ...freshState(),
-          ...persisted,
-          activityBest: { ...freshState().activityBest, ...persisted.activityBest },
-        } as GameState
-      },
+      version: 3,
+      migrate: (persistedState) => normalizeSnapshot(persistedState),
+      merge: (persistedState, currentState) => ({ ...currentState, ...normalizeSnapshot(persistedState) }),
       onRehydrateStorage: () => (state) => state?.tick(),
     },
   ),
