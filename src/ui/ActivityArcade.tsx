@@ -100,6 +100,18 @@ function MemoryFlip({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const resultPrompt = won
+    ? {
+        icon: '♥',
+        title: 'Perfect signal!',
+        body: 'A clear memory—and 10 bonus Sparks.',
+      }
+    : {
+        icon: '◇',
+        title: `${picks.length} symbols remembered`,
+        body: 'The signal faded, but Mori loved trying with you.',
+      }
+
   return (
     <GameShell title="Signal Memory" subtitle="Remember Mori’s five-symbol secret signal." onClose={onClose}>
       <div className="memory-board">
@@ -114,10 +126,24 @@ function MemoryFlip({ onClose }: { onClose: () => void }) {
             <p aria-label={picks.length ? `Your signal: ${picks.map((value) => PADS[value].label).join(', ')}` : 'Your signal is empty'}>
               {picks.map((value) => PADS[value].glyph).join('  ') || 'YOUR SIGNAL…'}
             </p>
-            <div>{PADS.map((pad, index) => <button key={pad.label} aria-label={`Choose ${pad.label}`} onClick={() => pick(index)}>{pad.glyph}</button>)}</div>
+            <div>
+              {PADS.map((pad, index) => (
+                <button key={pad.label} aria-label={`Choose ${pad.label}`} onClick={() => pick(index)}>
+                  {pad.glyph}
+                </button>
+              ))}
+            </div>
           </div>
         )}
-        {phase === 'done' && <GamePrompt icon={won ? '♥' : '◇'} title={won ? 'Perfect signal!' : `${picks.length} symbols remembered`} body={won ? 'A clear memory—and 10 bonus Sparks.' : 'The signal faded, but Mori loved trying with you.'} action="TRY AGAIN" onAction={start} />}
+        {phase === 'done' && (
+          <GamePrompt
+            icon={resultPrompt.icon}
+            title={resultPrompt.title}
+            body={resultPrompt.body}
+            action="TRY AGAIN"
+            onAction={start}
+          />
+        )}
       </div>
     </GameShell>
   )

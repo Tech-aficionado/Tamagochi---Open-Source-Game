@@ -1,35 +1,27 @@
-# Tamagochi Virtual Pet Implementation Plan
+# Initial game implementation notes
 
-> **For Kiro:** REQUIRED SUB-SKILL: Use executing-plans to implement this plan task-by-task.
+This document records the first playable version of Tamagochi and the choices that shaped it.
 
-**Goal:** Build a polished, installable browser virtual-pet vertical slice with animated Three.js graphics, care mechanics, story events, transformative device themes, and offline persistence.
+## Scope
 
-**Architecture:** A framework-independent TypeScript simulation feeds a React UI and React Three Fiber scene. Zustand coordinates live state, local storage provides offline continuity, and Vite PWA generates the installable app shell.
+The first release needed to feel complete on desktop and mobile: one original pet, meaningful care actions, short story events, several device themes, local saves, and offline installation.
 
-**Tech Stack:** Vite, TypeScript, React, Three.js, React Three Fiber, Drei, Zustand, ESLint, vite-plugin-pwa.
+## Technical approach
 
----
+- Keep the game rules in TypeScript so they do not depend on React or Three.js.
+- Use Zustand for state changes and browser storage for saves.
+- Let React handle controls and accessible status text.
+- Use React Three Fiber for Mori and the room inside the device.
+- Package the site as a Vite PWA.
 
-### Task 1: Foundation and design record
-- Create package, TypeScript, Vite/PWA, and lint configuration.
-- Record the approved architecture, aesthetic, assumptions, decisions, and risks.
-- Verify dependency installation.
+## Work completed
 
-### Task 2: Game simulation and content
-- Create typed pet needs, care actions, elapsed-time decay, story progression, and save migration.
-- Define four complete world themes and a scalable content registry.
-- Persist each state transition locally and restore elapsed progress.
+1. Set up TypeScript, React, Vite, ESLint, and PWA configuration.
+2. Added typed needs, care actions, elapsed-time decay, stories, themes, and save migration.
+3. Built the device, room, pet animations, lighting, particles, and theme transitions.
+4. Added keyboard, mouse, and touch controls with responsive layouts.
+5. Added local persistence, install prompts, offline assets, audio, and reduced-motion support.
 
-### Task 3: Three.js experience
-- Build a responsive device shell, miniature room, expressive procedural pet, lighting, particles, shadows, and theme transitions.
-- Use delta-time animation and bounded DPR for consistent performance.
-- Respect reduced-motion preferences.
+## Validation
 
-### Task 4: Interface and interaction
-- Build semantic care controls, status meters, story cards, theme selector, difficulty toggle, reset, and PWA install affordance.
-- Support mouse, keyboard, and touch with mobile-first responsive behavior.
-
-### Task 5: Verification
-- Run ESLint, TypeScript compilation, production build, and high-severity dependency audit.
-- Fix all failures and inspect generated PWA output.
-- No automated test suite is added because the user did not request tests.
+The initial release was checked with ESLint, TypeScript compilation, a production build, and a high-severity dependency audit. The repository does not yet include an automated test suite; simulation tests and browser smoke tests remain useful follow-up work.

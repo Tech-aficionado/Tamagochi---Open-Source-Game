@@ -1,42 +1,67 @@
 <div align="center">
 
+<img src="public/icon.svg" width="128" alt="Tamagochi app icon" />
+
 # Tamagochi
 
-### An original, evolving virtual-pet game for the browser
+### A tiny life that remembers how you care.
 
-<img src="public/icon.svg" width="160" alt="Tamagochi app icon" />
+Look after Mori, play a few pocket-sized games, and watch the world change around your habits.
 
-Care for Mori, shape a personality, collect memories, play pocket activities, and build a tiny world that changes with your habits.
-
-[Getting started](#getting-started) · [Gameplay](#gameplay) · [Architecture](#architecture) · [Contributing](#contributing)
+[Quick start](#getting-started) · [Gameplay](#gameplay) · [Architecture](#architecture) · [Contribute](#contributing)
 
 </div>
 
+![Mori inside the Sakura Pocket device next to the care panel](docs/images/tamagochi-hero.jpg)
+
 > [!IMPORTANT]
-> Tamagochi is an original project inspired by the virtual-pet genre. It does not use Tamagotchi characters, artwork, music, or other protected assets.
+> Tamagochi is an original project inspired by virtual-pet games. It does not use Tamagotchi characters, artwork, music, or other protected assets.
 
-## What is Tamagochi?
+## About the game
 
-Tamagochi is a local-first React game built around Mori, an original low-poly virtual companion. Six care actions affect Mori's needs and bond, while stories, activities, incidents, and repeated care gradually shape a Gentle, Playful, or Curious personality.
+Tamagochi is a small browser game about caring for Mori, an original low-poly companion. Mori has five needs and six care actions. Over time, the way you play affects bond, stories, personality, incidents, and growth.
 
-The game runs entirely in the browser, saves automatically on the current device, works offline after installation, and has no account, ads, analytics, or paid mechanics.
+The whole game runs in the browser. It saves to the current device, works offline once installed, and does not need an account or backend. There are no ads, analytics, or paid items.
 
-## Highlights
+## What you can do
 
-- **Expressive 3D companion:** Mori reacts to mood and every care action with distinct poses, expressions, particles, and movement.
-- **Six care actions:** Feed, Play, Wash, Rest, Cuddle, and Explore each change different needs.
-- **Two care modes:** Cozy offers gentler decay and safe incidents; Classic adds stronger time pressure.
-- **Living Evolution:** Care history leads from Seedling to Bloom to Luminary and shapes three valid personality paths.
-- **Pocket Incidents:** Deterministic care events remain until helped and reuse familiar care actions.
-- **Spark Workshop:** Earn Sparks in activities, then unlock three wearables and three room keepsakes.
-- **Branching memories:** Story choices improve Mori's bond and influence personality growth.
-- **Tamagochi Arcade:** Replay Star Catch and Signal Memory for scores, Sparks, streaks, and daily growth.
-- **Four complete worlds:** Sakura, Cyber, Moss, and Moon themes change the shell, room, lighting, and atmosphere.
-- **Installable PWA:** Android install prompts, iOS Add to Home Screen guidance, offline caching, and safe-area support.
-- **Accessible and responsive:** Semantic controls, meter labels, keyboard focus states, reduced-motion support, and mobile layouts.
-- **Local-first persistence:** Versioned, normalized saves preserve compatible progress without sending personal data anywhere.
+- Feed, play with, wash, rest, cuddle, and explore with Mori.
+- Choose Cozy mode for relaxed play or Classic mode for stronger time pressure.
+- Grow from Seedling to Bloom and Luminary while shaping a Gentle, Playful, or Curious personality.
+- Play Star Catch and Signal Memory to earn Sparks.
+- Spend Sparks on cosmetic wearables and room keepsakes.
+- Switch between Sakura, Neon, Moss, and Moon pocket worlds.
+- Install the game as a PWA and keep playing offline.
 
-## Table of contents
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/care-in-action.jpg" alt="Mori reacting to the Cuddle action" /></td>
+    <td width="50%"><img src="docs/images/world-collection.png" alt="The Sakura, Neon, Moss, and Moon worlds" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Caring for Mori</strong></td>
+    <td align="center"><strong>Four pocket worlds</strong></td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/growth-studio.jpg" alt="The Growth Studio and Spark Workshop" /></td>
+    <td><img src="docs/images/signal-memory.jpg" alt="A sequence in the Signal Memory activity" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Growth and keepsakes</strong></td>
+    <td align="center"><strong>Signal Memory</strong></td>
+  </tr>
+</table>
+
+## Help build it
+
+Contributions are welcome. The clearest places to help next are save import and export, simulation tests, mobile graphics settings, new incidents and stories, translations, and additional Arcade games. Please open an issue before starting a large change so the idea can be discussed first.
+
+> [!WARNING]
+> The source is public, but the repository is not legally open source until it has a license file. Choose an OSI-approved license before announcing it as an open-source project.
+
+## Contents
 
 - [Gameplay](#gameplay)
 - [Tech stack](#tech-stack)

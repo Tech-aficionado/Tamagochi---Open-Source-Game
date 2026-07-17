@@ -105,16 +105,100 @@ function Wearable({ itemId }: { itemId: KeepsakeId | null }) {
 }
 
 function RoomKeepsake({ itemId, accent }: { itemId: KeepsakeId | null; accent: string }) {
-  if (itemId === 'memory-lantern') return <group position={[1.75, -0.55, -0.5]}><mesh><boxGeometry args={[0.42, 0.62, 0.38]} /><meshStandardMaterial color="#fff0a8" emissive="#ffd66f" emissiveIntensity={0.55} /></mesh><mesh position={[0, 0.42, 0]}><torusGeometry args={[0.16, 0.035, 8, 18, Math.PI]} /><meshStandardMaterial color="#4c2933" /></mesh></group>
-  if (itemId === 'tiny-garden') return <group position={[1.7, -0.72, -0.45]}>{[-0.24, 0, 0.24].map((x, index) => <group key={x} position={[x, 0, 0]}><mesh><cylinderGeometry args={[0.025, 0.035, 0.42, 7]} /><meshStandardMaterial color="#537c59" /></mesh><mesh position={[0, 0.25, 0]}><sphereGeometry args={[0.11, 10, 7]} /><meshStandardMaterial color={index === 1 ? accent : '#ff9ca4'} /></mesh></group>)}</group>
-  if (itemId === 'dream-mobile') return <group position={[1.65, 1.05, -0.65]}><mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.38, 0.025, 6, 24]} /><meshStandardMaterial color={accent} /></mesh>{[-0.25, 0, 0.25].map((x, index) => <group key={x} position={[x, -0.3 - index * 0.08, 0]}><mesh><cylinderGeometry args={[0.008, 0.008, 0.42, 5]} /><meshBasicMaterial color="#4c2933" /></mesh><mesh position={[0, -0.26, 0]}><octahedronGeometry args={[0.08]} /><meshStandardMaterial color="#fff0a8" /></mesh></group>)}</group>
+  if (itemId === 'memory-lantern') {
+    return (
+      <group position={[1.75, -0.55, -0.5]}>
+        <mesh>
+          <boxGeometry args={[0.42, 0.62, 0.38]} />
+          <meshStandardMaterial color="#fff0a8" emissive="#ffd66f" emissiveIntensity={0.55} />
+        </mesh>
+        <mesh position={[0, 0.42, 0]}>
+          <torusGeometry args={[0.16, 0.035, 8, 18, Math.PI]} />
+          <meshStandardMaterial color="#4c2933" />
+        </mesh>
+      </group>
+    )
+  }
+
+  if (itemId === 'tiny-garden') {
+    return (
+      <group position={[1.7, -0.72, -0.45]}>
+        {[-0.24, 0, 0.24].map((x, index) => (
+          <group key={x} position={[x, 0, 0]}>
+            <mesh>
+              <cylinderGeometry args={[0.025, 0.035, 0.42, 7]} />
+              <meshStandardMaterial color="#537c59" />
+            </mesh>
+            <mesh position={[0, 0.25, 0]}>
+              <sphereGeometry args={[0.11, 10, 7]} />
+              <meshStandardMaterial color={index === 1 ? accent : '#ff9ca4'} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    )
+  }
+
+  if (itemId === 'dream-mobile') {
+    return (
+      <group position={[1.65, 1.05, -0.65]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.38, 0.025, 6, 24]} />
+          <meshStandardMaterial color={accent} />
+        </mesh>
+        {[-0.25, 0, 0.25].map((x, index) => (
+          <group key={x} position={[x, -0.3 - index * 0.08, 0]}>
+            <mesh>
+              <cylinderGeometry args={[0.008, 0.008, 0.42, 5]} />
+              <meshBasicMaterial color="#4c2933" />
+            </mesh>
+            <mesh position={[0, -0.26, 0]}>
+              <octahedronGeometry args={[0.08]} />
+              <meshStandardMaterial color="#fff0a8" />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    )
+  }
+
   return null
 }
 
 function IncidentSignal({ incidentId }: { incidentId: IncidentId | null }) {
-  if (incidentId === 'static-cloud') return <group position={[-1.15, 1.25, 0]}>{[-0.22, 0, 0.22].map((x) => <mesh key={x} position={[x, Math.abs(x), 0]}><sphereGeometry args={[0.22, 10, 8]} /><meshStandardMaterial color="#a59bb8" transparent opacity={0.82} /></mesh>)}</group>
-  if (incidentId === 'tangled-sprout') return <mesh position={[0, -0.7, 0.65]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.74, 0.04, 7, 30]} /><meshStandardMaterial color="#83b679" /></mesh>
-  if (incidentId === 'wandering-signal') return <group position={[1.2, 0.75, 0]}><mesh rotation={[0, 0, Math.PI / 4]}><octahedronGeometry args={[0.2]} /><meshStandardMaterial color="#bff7ff" emissive="#76dfff" emissiveIntensity={0.5} /></mesh></group>
+  if (incidentId === 'static-cloud') {
+    return (
+      <group position={[-1.15, 1.25, 0]}>
+        {[-0.22, 0, 0.22].map((x) => (
+          <mesh key={x} position={[x, Math.abs(x), 0]}>
+            <sphereGeometry args={[0.22, 10, 8]} />
+            <meshStandardMaterial color="#a59bb8" transparent opacity={0.82} />
+          </mesh>
+        ))}
+      </group>
+    )
+  }
+
+  if (incidentId === 'tangled-sprout') {
+    return (
+      <mesh position={[0, -0.7, 0.65]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.74, 0.04, 7, 30]} />
+        <meshStandardMaterial color="#83b679" />
+      </mesh>
+    )
+  }
+
+  if (incidentId === 'wandering-signal') {
+    return (
+      <group position={[1.2, 0.75, 0]}>
+        <mesh rotation={[0, 0, Math.PI / 4]}>
+          <octahedronGeometry args={[0.2]} />
+          <meshStandardMaterial color="#bff7ff" emissive="#76dfff" emissiveIntensity={0.5} />
+        </mesh>
+      </group>
+    )
+  }
+
   return null
 }
 
