@@ -58,8 +58,8 @@ The whole game runs in the browser. It saves to the current device, works offlin
 
 Contributions are welcome. The clearest places to help next are save import and export, simulation tests, mobile graphics settings, new incidents and stories, translations, and additional Arcade games. Please open an issue before starting a large change so the idea can be discussed first.
 
-> [!WARNING]
-> The source is public, but the repository is not legally open source until it has a license file. Choose an OSI-approved license before announcing it as an open-source project.
+> [!NOTE]
+> Tamagochi is open source under the [MIT License](LICENSE). You can use, modify, and distribute the project under the license terms.
 
 ## Contents
 
@@ -75,7 +75,7 @@ Contributions are welcome. The clearest places to help next are save import and 
 - [Original-content policy](#original-content-policy)
 - [Troubleshooting](#troubleshooting)
 - [Roadmap and contribution ideas](#roadmap-and-contribution-ideas)
-- [License status](#license-status)
+- [License](#license)
 
 ## Gameplay
 
@@ -361,7 +361,7 @@ Contributions are welcome, especially focused changes that preserve the game's o
 
 ## Original-content policy
 
-Contributions must be original or used under terms compatible with the repository's eventual license. Do not submit:
+Contributions must be original or used under terms compatible with the [MIT License](LICENSE). Do not submit:
 
 - Tamagotchi characters, device art, logos, copied UI, or story content
 - Ripped or imitated commercial game music and sound effects
@@ -440,15 +440,13 @@ The existing game already includes saves, themes, activities, music, sound effec
 - Focused simulation unit tests and browser-level smoke tests
 - New original Arcade activities with bounded daily progression rewards
 - Localization infrastructure and translated content
-- A documented, community-approved project license
-
 Before implementing a large feature, open an issue or discussion describing its player value, persistence impact, accessibility behavior, performance cost, and original-content plan.
 
-## License status
+## License
 
-**No software license file has been declared in this repository yet.** Public source code alone does not grant permission to copy, redistribute, or create derivative works. Until the maintainers add an explicit license, default copyright restrictions apply.
+Tamagochi is open source software licensed under the [MIT License](LICENSE). You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies of the software, provided that the copyright and permission notices from the license are included in copies or substantial portions of the project.
 
-You may inspect the code and submit contributions through the repository workflow, but do not assume MIT or another open-source license. A future licensing contribution should add a real `LICENSE` file and update this section in the same change.
+The software is provided without warranty. See [`LICENSE`](LICENSE) for the complete terms.
 
 ---
 
