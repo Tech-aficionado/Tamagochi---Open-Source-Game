@@ -13,12 +13,13 @@ export default defineConfig({
       includeAssets: ['icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'offline.html'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
+        globIgnores: ['social-preview.png'],
         navigateFallback: '/index.html',
       },
       manifest: {
-        name: 'Tamagochi — Virtual Pet',
+        name: 'Tamagochi — A Tiny Virtual Pet Game',
         short_name: 'Tamagochi',
-        description: 'Raise a tiny friend inside a magical handheld world.',
+        description: 'Care for Mori, play pocket-sized games, and shape a magical browser world in an offline-friendly virtual pet game.',
         theme_color: '#f05f4f',
         background_color: '#fff5df',
         display: 'standalone',
