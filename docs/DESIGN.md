@@ -1,54 +1,48 @@
-# Tamagochi — Product and Technical Design
+# Tamagochi product and technical notes
 
-## Understanding
-- An original browser virtual-pet game for nostalgic adults and cozy-game players.
-- Cozy and Classic care modes, evolving needs, stories, collections, and theme-driven worlds.
-- Desktop, mobile, installable PWA, offline solo play, and future optional cloud/social features.
-- No copied Tamagotchi characters, real-time multiplayer, chat, ads, or paid mechanics.
+## Scope
 
-## Design direction
-**Aesthetic:** Pocket-world retro futurism — tactile Japanese toy silhouettes containing soft 3D dioramas.
+Tamagochi is an original browser virtual-pet game for people who enjoy small daily rituals and cozy games. It supports desktop and mobile play, can be installed as a PWA, and keeps solo play available offline.
 
-**DFII:** 15/15 (impact 5 + fit 5 + feasibility 4 + performance 4 − consistency risk 3).
+The project does not use Tamagotchi characters or assets. It also avoids chat, advertising, paid mechanics, and real-time multiplayer.
 
-**Differentiation anchor:** changing the device shell transforms the entire miniature world, lighting, materials, particles, interface accent, and pet mood.
+## Visual direction
+
+The game treats each device as a pocket-sized diorama. Chunky toy shapes frame a soft 3D room, and changing the shell also changes the lighting, materials, particles, and atmosphere inside it.
 
 ## Architecture
-The deterministic TypeScript simulation owns care rules and time progression. React owns accessible application UI. React Three Fiber renders Three.js presentation from simulation snapshots. Local persistence is authoritative for offline play; cloud sync can later consume versioned snapshots and an event queue.
 
-## Assumptions
-- Target 60 FPS with bounded DPR and a graceful low-power fallback.
-- Solo play remains available through network or cloud outages.
-- Guest mode stores no personal data; future accounts use minimal profiles.
-- Content is data-driven so pets, stories, and themes can expand independently.
+The TypeScript simulation owns care rules, time progression, incidents, rewards, and save compatibility. React renders the controls and readable status information. React Three Fiber turns the current game state into Mori's pose, room, lighting, and effects.
 
-## Decision log
-1. Use original creatures and device designs to avoid copying protected IP.
-2. Use React plus React Three Fiber because UI/content scale outweighs the small runtime cost.
-3. Keep simulation independent from rendering for reliable balancing and persistence.
-4. Make local saves immediate and cloud functionality optional.
-5. Start with a complete vertical slice rather than dozens of shallow placeholders.
+Browser storage is the source of truth. The game has no required backend or account system.
 
-## Risks
-- Large content scope requires an asset pipeline beyond the vertical slice.
-- Cloud accounts and social gifts require backend credentials, policies, and moderation review.
-- Mobile GPU variance requires adaptive quality and real-device profiling.
+## Product rules
 
-## Living progression expansion
-Tamagochi connects three systems through Mori's care history: Living Evolution, Pocket Incidents, and the Spark Workshop. Care patterns shape Gentle, Playful, or Curious personality scores; growth moves through Seedling, Bloom, and Luminary stages. Incidents reuse familiar care actions and remain until helped, with safe Cozy behavior and capped health pressure in Classic. Arcade Sparks purchase original, cosmetic wearables and room keepsakes.
+- Keep Mori recognizable as the central character.
+- Make every care action readable through both motion and text.
+- Preserve offline play and immediate local saving.
+- Keep rewards cosmetic rather than paid or competitive.
+- Add content through data where possible so stories, themes, and keepsakes remain easy to extend.
+- Respect reduced-motion preferences and lower-powered mobile devices.
 
-### Progression constraints
-- Progression awards are cooldown/day gated so repeated care still helps needs without instantly farming growth.
-- Incident deadlines and selections are deterministic and persisted; one incident can be active at a time.
-- Local saves are treated as untrusted input and normalized field-by-field under schema v3 while retaining `pocket-worlds-save-v1`.
-- Derived stage and personality are not persisted, preventing stale duplicated state.
-- New 3D details use bounded low-poly primitives and static reduced-motion presentation.
+## Technical decisions
 
-### Expansion decision log
-1. Combined evolution, incidents, and cosmetics instead of three disconnected features to create one care-to-expression loop.
-2. Balanced first evolution around 30–60 minutes; deeper evolution remains long-term.
-3. Use mode-aware consequences: Cozy incidents never harm health, while Classic pressure is capped and recoverable.
-4. Preserve existing Sparks and free device themes; workshop keepsakes are optional cosmetics with no gameplay power.
-5. Normalize legacy saves conservatively because historical story choices and care actions cannot be reconstructed.
-6. Keep exact timing, catalog, incident, migration, and equipment rules in typed local modules with no new service or dependency.
-7. Accept local clock/save editing and cross-tab last-writer-wins as limitations of an offline-only game.
+1. Game rules stay separate from rendering so they can be balanced and tested without a browser scene.
+2. Saved data is treated as untrusted and normalized before use.
+3. Derived values such as growth stage and dominant personality are calculated rather than duplicated in storage.
+4. Timed actions settle from one timestamp to avoid inconsistent decay or rewards.
+5. New 3D details use a limited number of low-poly objects to protect mobile performance.
+
+## Living progression
+
+Care, stories, incidents, and Arcade results add growth and shape Gentle, Playful, or Curious traits. Mori moves from Seedling to Bloom and then Luminary. Incidents stay active until the matching care action is used; Cozy mode keeps them harmless, while Classic mode applies limited health pressure.
+
+Sparks earned in the Arcade unlock wearables and room keepsakes. Device themes remain free, and cosmetics do not change game balance.
+
+## Known limitations
+
+- Saves are tied to one browser profile and are not synchronized across tabs or devices.
+- Clearing site data can remove progress.
+- Local clock or save editing can affect progression in this offline-only game.
+- Mobile GPU performance varies, so an optional quality control is still planned.
+- The project needs deterministic simulation tests and browser-level smoke tests.

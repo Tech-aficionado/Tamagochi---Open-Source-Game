@@ -24,6 +24,17 @@ export const GrowthStudio = () => {
   const incident = game.activeIncident ? INCIDENT_BY_ID[game.activeIncident.id] : null
   const traitMaximum = Math.max(10, ...Object.values(game.personalityScores))
   const growthReady = Date.now() >= game.growthCooldownUntil
+  const imprintTitle = growthReady ? 'CARE IMPRINT READY' : 'CARE IMPRINT RESTING'
+  const imprintDescription = growthReady
+    ? 'Your next care action can shape growth.'
+    : 'Care still helps Mori while the next imprint gathers.'
+  let nextStageName: string | null = null
+  if (growth.stage.id === 'seedling') nextStageName = 'Bloom'
+  if (growth.stage.id === 'bloom') nextStageName = 'Luminary'
+  const stageProgressLabel = nextStageName
+    ? `${growth.stage.name} → ${nextStageName}`
+    : `${growth.stage.name} · COMPLETE`
+  const remainingGrowthLabel = nextStageName ? `${growth.remaining} TO GO` : 'FULL GLOW'
 
   const itemState = (itemId: KeepsakeId) => {
     const owned = game.ownedItemIds.includes(itemId)
@@ -50,13 +61,13 @@ export const GrowthStudio = () => {
             <p>{personality.description}</p>
           </div>
           <div className={`imprint-status ${growthReady ? 'ready' : ''}`}>
-            <b>{growthReady ? 'CARE IMPRINT READY' : 'CARE IMPRINT RESTING'}</b>
-            <span>{growthReady ? 'Your next care action can shape growth.' : 'Care still helps Mori while the next imprint gathers.'}</span>
+            <b>{imprintTitle}</b>
+            <span>{imprintDescription}</span>
           </div>
           <div className="growth-meter-block">
             <div className="meter-label">
-              <span>{growth.stage.name}{growth.stage.nextAt ? ` → ${growth.stage.id === 'seedling' ? 'Bloom' : 'Luminary'}` : ' · COMPLETE'}</span>
-              <strong>{growth.stage.nextAt ? `${growth.remaining} TO GO` : 'FULL GLOW'}</strong>
+              <span>{stageProgressLabel}</span>
+              <strong>{remainingGrowthLabel}</strong>
             </div>
             <div className="growth-track" role="meter" aria-label={`${growth.stage.name} growth progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(growth.percent)}>
               <span style={{ width: `${growth.percent}%` }} />

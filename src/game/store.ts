@@ -148,21 +148,37 @@ export const useGameStore = create<GameState>()(
         const settled = settleTimedState(state, Date.now())
         const safeScore = normalizeActivityScore(gameId, score)
         const today = utcDateKey(settled.lastUpdated)
-        const previous = state.lastActivityDate ? Date.parse(`${state.lastActivityDate}T00:00:00Z`) : null
-        const dayGap = previous === null ? null : Math.round((Date.parse(`${today}T00:00:00Z`) - previous) / 86_400_000)
-        const playStreak = dayGap === 0 ? state.playStreak : dayGap === 1 ? state.playStreak + 1 : 1
+        const previousActivity = state.lastActivityDate
+          ? Date.parse(`${state.lastActivityDate}T00:00:00Z`)
+          : null
+        const daysSinceLastActivity = previousActivity === null
+          ? null
+          : Math.round((Date.parse(`${today}T00:00:00Z`) - previousActivity) / 86_400_000)
+
+        let playStreak = 1
+        if (daysSinceLastActivity === 0) playStreak = state.playStreak
+        if (daysSinceLastActivity === 1) playStreak = state.playStreak + 1
+
         const reward = Math.max(3, Math.floor(safeScore / 2))
-        const progressionReady = state.lastGrowthActivityDate !== today
+        const canEarnDailyGrowth = state.lastGrowthActivityDate !== today
+        const growthAward = canEarnDailyGrowth ? 6 : 0
         const trait = gameId === 'star-catch' ? 'playful' : 'curious'
+        const personalityScores = canEarnDailyGrowth
+          ? applyTraitAward(state.personalityScores, trait, 3)
+          : state.personalityScores
+        const personalityFocus = canEarnDailyGrowth ? trait : state.personalityFocus
+        const lastGrowthActivityDate = canEarnDailyGrowth ? today : state.lastGrowthActivityDate
+        const growthMessage = canEarnDailyGrowth ? ' and a +6 growth echo' : ''
+
         return {
           ...settled,
           sparks: state.sparks + reward,
           playStreak,
           lastActivityDate: today,
-          lastGrowthActivityDate: progressionReady ? today : state.lastGrowthActivityDate,
-          growthPoints: state.growthPoints + (progressionReady ? 6 : 0),
-          personalityScores: progressionReady ? applyTraitAward(state.personalityScores, trait, 3) : state.personalityScores,
-          personalityFocus: progressionReady ? trait : state.personalityFocus,
+          lastGrowthActivityDate,
+          growthPoints: state.growthPoints + growthAward,
+          personalityScores,
+          personalityFocus,
           activityBest: { ...state.activityBest, [gameId]: Math.max(state.activityBest[gameId], safeScore) },
           needs: {
             ...settled.needs,
@@ -173,7 +189,7 @@ export const useGameStore = create<GameState>()(
           bond: clampNeed(state.bond + 2 + safeScore / 10),
           lastAction: 'activity' as const,
           actionNonce: state.actionNonce + 1,
-          lastReply: `${state.petName} found ${reward} Sparks${progressionReady ? ' and a +6 growth echo' : ''} in the Tamagochi Arcade!`,
+          lastReply: `${state.petName} found ${reward} Sparks${growthMessage} in the Tamagochi Arcade!`,
         }
       }),
       chooseStory: (choiceIndex) => set((state) => {

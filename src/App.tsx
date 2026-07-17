@@ -181,13 +181,11 @@ export default function App() {
   const returnNeed = returnBrief ? NEEDS.find((need) => need.id === returnBrief.changedNeed) : null
   const returnIncident = returnBrief?.incidentId ? INCIDENT_BY_ID[returnBrief.incidentId] : null
   const sceneActive = sceneInView && pageVisible && !tutorialOpen && !installGuideOpen && !game.storyOpen
-  const noticeLabel = game.lastAction === 'story'
-    ? 'MEMORY SAVED'
-    : game.lastAction === 'activity'
-      ? 'ARCADE SIGNAL'
-      : game.lastAction === 'workshop'
-        ? 'WORKSHOP'
-        : 'MORI’S SIGNAL'
+
+  let noticeLabel = 'MORI’S SIGNAL'
+  if (game.lastAction === 'story') noticeLabel = 'MEMORY SAVED'
+  if (game.lastAction === 'activity') noticeLabel = 'ARCADE SIGNAL'
+  if (game.lastAction === 'workshop') noticeLabel = 'WORKSHOP'
 
   useLayoutEffect(() => {
     game.tick()
